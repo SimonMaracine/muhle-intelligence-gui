@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <optional>
 #include <stdexcept>
 
 namespace subprocess {
@@ -22,9 +23,10 @@ namespace subprocess {
         Subprocess(Subprocess&& other) noexcept;
         Subprocess& operator=(Subprocess&& other) noexcept;
 
-        bool read(std::string& data) const;
-        bool write(const std::string& data) const;
-        bool wait() noexcept;
+        std::optional<std::string> read() const;
+        void write(const std::string& data) const;
+        void wait();
+        void terminate();
         bool active() const noexcept;
     private:
         int input {-1};  // Read from

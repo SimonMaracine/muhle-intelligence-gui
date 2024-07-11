@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <utility>
+#include <csignal>
 
 #include <unistd.h>
 #include <sys/wait.h>
@@ -11,20 +12,7 @@
 #include <errno.h>
 
 namespace subprocess {
-    template<std::size_t Size>
-    static bool newline_in_buffer(const char* buffer, std::size_t& bytes_up_to_newline) {
-        for (std::size_t i {0}; i < Size; i++) {
-            if (buffer[i] == '\n') {
-                bytes_up_to_newline = i + 1;  // Including newline
-                return true;
-            }
-        }
-
-        bytes_up_to_newline = 0;
-        return false;
-    }
-
-    static bool newline_in_buffer(const std::string& buffer, std::size_t& bytes_up_to_newline) {
+    static bool newline_in_buffer(std::string_view buffer, std::size_t& bytes_up_to_newline) {
         for (std::size_t i {0}; i < buffer.size(); i++) {
             if (buffer[i] == '\n') {
                 bytes_up_to_newline = i + 1;  // Including newline
@@ -113,17 +101,16 @@ namespace subprocess {
         return *this;
     }
 
-    bool Subprocess::read(std::string& data) const {
+    std::optional<std::string> Subprocess::read() const {
         {
             std::size_t bytes_up_to_newline {};
 
             if (newline_in_buffer(buffered, bytes_up_to_newline)) {
-                const std::string current {std::string(buffered, 0, bytes_up_to_newline)};
+                const auto current {std::string(buffered, bytes_up_to_newline)};
 
-                buffered = std::string(buffered, bytes_up_to_newline, static_cast<std::size_t>(buffered.size()));
-                data = current;
+                buffered = std::string(buffered, bytes_up_to_newline, buffered.size());
 
-                return true;
+                return std::make_optional(current);
             }
         }
 
@@ -140,66 +127,81 @@ namespace subprocess {
         if (result < 0) {
             throw Error(std::string("Could not poll read file: ") + strerror(errno));
         } else if (result != 1) {
-            return false;
+            return std::nullopt;
         }
 
         // 1.  Read a bunch of bytes
         // 2.  Scan for newline in buffer
-        // 3a. If a newline is found, concatenate the buffer up to the newline with the contents of the buffered buffer and return it as the result
-        // 3b. Save the rest of the extracted characters (from newline + 1 up to the end) into the buffered buffer
-        // 4.  If a newline is not found, save the buffer and goto #1
-
-        static constexpr std::size_t CHUNK {256};
+        // 3.  If no bytes read, save the buffer in the buffered buffer and return
+        // 4a. If a newline is found, concatenate the buffer up to the newline with the contents of the buffered buffer and return it as the result
+        // 4b. Save the rest of the extracted characters (from newline + 1 up to the end) into the buffered buffer
+        // 5.  If a newline is not found, save the buffer and goto #1
 
         std::string current;
 
         while (true) {
-            char buffer[CHUNK] {};
-            const ssize_t bytes {::read(input, buffer, CHUNK)};
+            char buffer[256] {};
+            const ssize_t bytes {::read(input, buffer, sizeof(buffer))};
 
             if (bytes < 0) {
+                buffered += current;
+
                 throw Error(std::string("Could not read from file: ") + strerror(errno));
             }
 
             if (bytes == 0) {
-                return false;
+                buffered += current;
+
+                return std::nullopt;
             }
 
             std::size_t bytes_up_to_newline {};
 
-            if (newline_in_buffer<CHUNK>(buffer, bytes_up_to_newline)) {
+            if (newline_in_buffer(buffer, bytes_up_to_newline)) {
                 current += std::string(buffer, bytes_up_to_newline);
 
-                data = (
+                return std::make_optional(
                     std::exchange(buffered, std::string(buffer, bytes_up_to_newline, static_cast<std::size_t>(bytes)))
                     + current
                 );
-
-                return true;
             } else {
                 current += buffer;
             }
         }
     }
 
-    bool Subprocess::write(const std::string& data) const {
-        const ssize_t bytes {::write(output, data.c_str(), data.size())};
+    void Subprocess::write(const std::string& data) const {
+        const char* buffer {data.data()};
+        std::size_t size {data.size()};
 
-        if (bytes < 0) {
-            throw Error(std::string("Could not write to file: ") + strerror(errno));
-        } else if (bytes < static_cast<ssize_t>(data.size())) {
-            return false;
+        while (true) {
+            const ssize_t bytes {::write(output, buffer, size)};
+
+            if (bytes < 0) {
+                throw Error(std::string("Could not write to file: ") + strerror(errno));
+            }
+
+            if (static_cast<std::size_t>(bytes) < size) {
+                buffer = data.data() + bytes;
+                size -= bytes;
+
+                continue;
+            }
+
+            break;
         }
-
-        return true;
     }
 
-    bool Subprocess::wait() noexcept {
-        if (waitpid(std::exchange(child_pid, -1), nullptr, 0) < 0) {  // TODO this is an error
-            return false;
+    void Subprocess::wait() {
+        if (waitpid(std::exchange(child_pid, -1), nullptr, 0) < 0) {
+            throw Error(std::string("Failed waiting for process: ") + strerror(errno));
         }
+    }
 
-        return true;
+    void Subprocess::terminate() {
+        if (kill(std::exchange(child_pid, -1), SIGTERM) < 0) {
+            throw Error(std::string("Could not send terminate signal to process: ") + strerror(errno));
+        }
     }
 
     bool Subprocess::active() const noexcept {

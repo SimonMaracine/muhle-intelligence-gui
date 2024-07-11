@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <cstring>
+#include <filesystem>
 
 #include <gui_base/gui_base.hpp>
 #include <ImGuiFileDialog.h>
@@ -12,6 +13,10 @@ void MuhlePlayer::start() {
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     muhle_board = board::MuhleBoard([this](const board::Move& move, board::Player turn) {
+        if (!muhle_process.active()) {
+            return;
+        }
+
         int player {};
 
         switch (turn) {
@@ -25,13 +30,14 @@ void MuhlePlayer::start() {
 
         switch (player) {
             case PlayerHuman:
-                std::cerr << "Writing " << board::move_to_string(move) << '\n';
-
-                if (!muhle_process.write("move " + board::move_to_string(move) + '\n')) {
-                    std::cerr << "Could not write command\n";
+                try {
+                    muhle_process.write("move " + board::move_to_string(move) + '\n');
+                } catch (const subprocess::Error& e) {
+                    terminate_process(e.what());
                 }
 
                 state = State::NextTurn;
+
                 break;
             case PlayerComputer:
                 break;
@@ -43,7 +49,11 @@ void MuhlePlayer::update() {
     main_menu_bar();
     board();
     controls();
-    load_library_dialog();
+    load_engine_dialog();
+
+    if (!muhle_process.active()) {
+        return;
+    }
 
     if (muhle_board.get_game_over() != board::GameOver::None) {
         return;
@@ -76,41 +86,55 @@ void MuhlePlayer::update() {
         case State::HumanThinking:
             break;
         case State::ComputerBegin:
-            if (!muhle_process.write("go\n")) {
-                std::cerr << "Could not write command\n";
+            try {
+                muhle_process.write("go\n");
+            } catch (const subprocess::Error& e) {
+                terminate_process(e.what());
+                break;
             }
 
             state = State::ComputerThinking;
 
             break;
         case State::ComputerThinking: {
-            std::string data;
+            std::optional<std::string> data;
 
-            if (muhle_process.read(data)) {
-                const auto tokens {parse_message(data.substr(0, data.size() - 1))};
+            try {
+                data = muhle_process.read();
+            } catch (const subprocess::Error& e) {
+                terminate_process(e.what());
+                break;
+            }
 
-                if (tokens.at(0) == "bestmove") {
-                    std::cerr << "Board making engine move " << tokens.at(1) << '\n';
+            if (!data) {
+                break;
+            }
 
-                    const board::Move move {board::move_from_string(tokens.at(1))};
+            const auto tokens {parse_message(data->substr(0, data->size() - 1))};
 
-                    switch (move.type) {
-                        case board::MoveType::Place:
-                            muhle_board.place(move.place.place_index);
-                            break;
-                        case board::MoveType::PlaceTake:
-                            muhle_board.place_take(move.place_take.place_index, move.place_take.take_index);
-                            break;
-                        case board::MoveType::Move:
-                            muhle_board.move(move.move.source_index, move.move.destination_index);
-                            break;
-                        case board::MoveType::MoveTake:
-                            muhle_board.move_take(move.move_take.source_index, move.move_take.destination_index, move.move_take.take_index);
-                            break;
-                    }
-
-                    state = State::NextTurn;
+            if (tokens.at(0) == "bestmove") {
+                if (tokens.at(1) == "none") {
+                    break;
                 }
+
+                const auto move {board::move_from_string(tokens.at(1))};
+
+                switch (move.type) {
+                    case board::MoveType::Place:
+                        muhle_board.place(move.place.place_index);
+                        break;
+                    case board::MoveType::PlaceTake:
+                        muhle_board.place_take(move.place_take.place_index, move.place_take.take_index);
+                        break;
+                    case board::MoveType::Move:
+                        muhle_board.move(move.move.source_index, move.move.destination_index);
+                        break;
+                    case board::MoveType::MoveTake:
+                        muhle_board.move_take(move.move_take.source_index, move.move_take.destination_index, move.move_take.take_index);
+                        break;
+                }
+
+                state = State::NextTurn;
             }
 
             break;
@@ -119,38 +143,51 @@ void MuhlePlayer::update() {
 }
 
 void MuhlePlayer::stop() {
-    unload_library();
+    unload_engine();
 }
 
-void MuhlePlayer::load_library(const std::string& file_path) {
+void MuhlePlayer::load_engine(const std::string& file_path) {
     try {
         muhle_process = subprocess::Subprocess(file_path);
     } catch (const subprocess::Error& e) {
-        std::cerr << "Could not start subprocess: " << e.what() << '\n';
+        std::cerr << "Could not start engine: " << e.what() << '\n';
+        return;
     }
 
-    if (!muhle_process.write("init\n")) {
-        std::cerr << "Could not write command\n";
+    try {
+        muhle_process.write("init\n");
+    } catch (const subprocess::Error& e) {
+        terminate_process(e.what());
+        return;
     }
+
+    engine_filename = std::filesystem::path(file_path).filename();
 }
 
-void MuhlePlayer::unload_library() {
+void MuhlePlayer::unload_engine() {
     if (!muhle_process.active()) {
         return;
     }
 
-    if (!muhle_process.write("quit\n")) {
-        std::cerr << "Could not write command\n";
+    try {
+        muhle_process.write("quit\n");
+    } catch (const subprocess::Error& e) {
+        terminate_process(e.what());
+        return;
     }
 
-    muhle_process.wait();
+    try {
+        muhle_process.wait();
+    } catch (const subprocess::Error& e) {
+        std::cerr << e.what() << '\n';
+    }
 }
 
 void MuhlePlayer::main_menu_bar() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Player")) {
             if (ImGui::MenuItem("Load Engine")) {
-                load_library();
+                load_engine();
             }
             if (ImGui::MenuItem("Reset Board", nullptr, nullptr, state != State::ComputerThinking)) {
                 reset();
@@ -191,7 +228,7 @@ void MuhlePlayer::main_menu_bar() {
     }
 }
 
-void MuhlePlayer::load_library() {
+void MuhlePlayer::load_engine() {
     IGFD::FileDialogConfig config;
     config.flags |= ImGuiFileDialogFlags_Modal;
 
@@ -203,13 +240,13 @@ void MuhlePlayer::load_library() {
     );
 }
 
-void MuhlePlayer::load_library_dialog() {
+void MuhlePlayer::load_engine_dialog() {
     if (ImGuiFileDialog::Instance()->Display("FileDialog", 32, ImVec2(768, 432))) {
         if (ImGuiFileDialog::Instance()->IsOk()) {
             const std::string file_path {ImGuiFileDialog::Instance()->GetFilePathName()};
 
             if (!file_path.empty()) {
-                load_library(file_path);
+                load_engine(file_path);
             }
         }
 
@@ -221,19 +258,25 @@ void MuhlePlayer::import_position() {
     char buffer[32] {};
 
     if (ImGui::InputText("string", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
-        // if (!muhle_board.set_position(buffer)) {
-        //     std::cout << "Invalid SMN string\n";
-        // }
+        // TODO
     }
 }
 
 void MuhlePlayer::reset() {
+    if (muhle_process.active()) {
+        try {
+            muhle_process.write("newgame\n");
+        } catch (const subprocess::Error& e) {
+            terminate_process(e.what());
+        }
+    }
+
     muhle_board.reset();
     state = State::NextTurn;
 }
 
 void MuhlePlayer::about() {
-    ImGui::Text("%s", reinterpret_cast<const char*>(u8"Mühle Player - for testing and developing Mühle Intelligence"));
+    ImGui::Text("%s", u8"Mühle Player - for testing and developing Mühle Intelligence");
 }
 
 void MuhlePlayer::notation() {
@@ -252,7 +295,7 @@ void MuhlePlayer::board() {
 
 void MuhlePlayer::controls() {
     if (ImGui::Begin("Controls")) {
-        ImGui::Text("Engine name: %s", "");
+        ImGui::Text("Engine: %s", engine_filename.c_str());
         ImGui::Separator();
 
         ImGui::Spacing();
@@ -310,6 +353,16 @@ void MuhlePlayer::controls() {
     }
 
     ImGui::End();
+}
+
+void MuhlePlayer::terminate_process(const char* message) {
+    std::cerr << message << '\n';
+
+    try {
+        muhle_process.terminate();
+    } catch (const subprocess::Error& e) {
+        std::cerr << e.what() << '\n';
+    }
 }
 
 std::vector<std::string> MuhlePlayer::parse_message(const std::string& message) {

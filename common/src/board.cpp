@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <utility>
+#include <unordered_map>
 #include <cassert>
 
 namespace board {
@@ -33,31 +34,41 @@ namespace board {
     };
 
     static Idx index_from_string(std::string_view string) {
-        if (string == "a7") return 0;
-        else if (string == "d7") return 1;
-        else if (string == "g7") return 2;
-        else if (string == "b6") return 3;
-        else if (string == "d6") return 4;
-        else if (string == "f6") return 5;
-        else if (string == "c5") return 6;
-        else if (string == "d5") return 7;
-        else if (string == "e5") return 8;
-        else if (string == "a4") return 9;
-        else if (string == "b4") return 10;
-        else if (string == "c4") return 11;
-        else if (string == "e4") return 12;
-        else if (string == "f4") return 13;
-        else if (string == "g4") return 14;
-        else if (string == "c3") return 15;
-        else if (string == "d3") return 16;
-        else if (string == "e3") return 17;
-        else if (string == "b2") return 18;
-        else if (string == "d2") return 19;
-        else if (string == "f2") return 20;
-        else if (string == "a1") return 21;
-        else if (string == "d1") return 22;
-        else if (string == "g1") return 23;
-        else return 0;
+        const std::unordered_map<std::string_view, Idx> map {
+            { "a7", 0 },
+            { "d7", 1 },
+            { "g7", 2 },
+            { "b6", 3 },
+            { "d6", 4 },
+            { "f6", 5 },
+            { "c5", 6 },
+            { "d5", 7 },
+            { "e5", 8 },
+            { "a4", 9 },
+            { "b4", 10 },
+            { "c4", 11 },
+            { "e4", 12 },
+            { "f4", 13 },
+            { "g4", 14 },
+            { "c3", 15 },
+            { "d3", 16 },
+            { "e3", 17 },
+            { "b2", 18 },
+            { "d2", 19 },
+            { "f2", 20 },
+            { "a1", 21 },
+            { "d1", 22 },
+            { "g1", 23 }
+        };
+
+        const auto iter {map.find(string)};
+
+        if (iter != map.cend()) {
+            return iter->second;
+        }
+
+        assert(false);
+        return {};
     }
 
     static std::string_view string_from_index(Idx index) {
@@ -86,7 +97,9 @@ namespace board {
             case 21: return "a1";
             case 22: return "d1";
             case 23: return "g1";
-            default: return "";
+            default:
+                assert(false);
+                break;
         }
     }
 
@@ -499,6 +512,10 @@ namespace board {
 
     void MuhleBoard::check_winner_material() {
         if (game_over != GameOver::None) {
+            return;
+        }
+
+        if (plies < 18) {
             return;
         }
 
@@ -1065,7 +1082,6 @@ namespace board {
         }
 
         assert(false);
-
         return {};
     }
 
