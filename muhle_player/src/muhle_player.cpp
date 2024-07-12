@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cstring>
 #include <filesystem>
+#include <chrono>
 
 #include <gui_base/gui_base.hpp>
 #include <ImGuiFileDialog.h>
@@ -97,20 +98,20 @@ void MuhlePlayer::update() {
 
             break;
         case State::ComputerThinking: {
-            std::optional<std::string> data;
+            std::optional<std::string> message;
 
             try {
-                data = muhle_process.read();
+                message = muhle_process.read();
             } catch (const subprocess::Error& e) {
                 terminate_process(e.what());
                 break;
             }
 
-            if (!data) {
+            if (!message) {
                 break;
             }
 
-            const auto tokens {parse_message(data->substr(0, data->size() - 1))};
+            const auto tokens {parse_message(message->substr(0, message->size() - 1))};
 
             if (tokens.at(0) == "bestmove") {
                 if (tokens.at(1) == "none") {
@@ -154,6 +155,37 @@ void MuhlePlayer::load_engine(const std::string& file_path) {
         return;
     }
 
+    {
+        const auto begin {std::chrono::steady_clock::now()};
+
+        while (true) {
+            using namespace std::chrono_literals;
+
+            const auto now {std::chrono::steady_clock::now()};
+
+            if (now - begin > 5s) {
+                terminate_process("Engine did not respond in a timely manner, aborting");
+                return;
+            }
+
+            std::optional<std::string> message;
+
+            try {
+                message = muhle_process.read();
+            } catch (const subprocess::Error& e) {
+                terminate_process(e.what());
+                return;
+            }
+
+            if (*message == "ready\n") {
+                break;
+            }
+
+            terminate_process("Engine did not respond with the ready message, aborting");
+            return;
+        }
+    }
+
     try {
         muhle_process.write("init\n");
     } catch (const subprocess::Error& e) {
@@ -189,7 +221,7 @@ void MuhlePlayer::main_menu_bar() {
             if (ImGui::MenuItem("Load Engine")) {
                 load_engine();
             }
-            if (ImGui::MenuItem("Reset Board", nullptr, nullptr, state != State::ComputerThinking)) {
+            if (ImGui::MenuItem("Reset", nullptr, nullptr, state != State::ComputerThinking)) {
                 reset();
             }
             if (ImGui::BeginMenu("Import Position")) {
@@ -200,7 +232,7 @@ void MuhlePlayer::main_menu_bar() {
             if (ImGui::MenuItem("Export Position")) {
 
             }
-            if (ImGui::MenuItem("Exit")) {
+            if (ImGui::MenuItem("Quit")) {
                 quit();
             }
 

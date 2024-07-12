@@ -5,13 +5,6 @@
 #include <stdexcept>
 
 namespace subprocess {
-    struct Error : public std::runtime_error {
-        explicit Error(const char* message)
-            : std::runtime_error(message) {}
-        explicit Error(const std::string& message)
-            : std::runtime_error(message) {}
-    };
-
     class Subprocess {
     public:
         Subprocess() noexcept = default;
@@ -34,5 +27,12 @@ namespace subprocess {
         int child_pid {-1};
 
         mutable std::string buffered;
+    };
+
+    struct Error : public std::runtime_error {
+        explicit Error(const char* message)
+            : std::runtime_error(message) {}
+        explicit Error(const std::string& message)
+            : std::runtime_error(message) {}
     };
 }

@@ -6,10 +6,7 @@ add_executable(muhle_player
     "src/muhle_player.hpp"
 )
 
-target_link_libraries(muhle_player PRIVATE
-    gui_base
-    common
-)
+target_link_libraries(muhle_player PRIVATE common)
 
 enable_warnings(muhle_player)
 set_cpp_standard(muhle_player)

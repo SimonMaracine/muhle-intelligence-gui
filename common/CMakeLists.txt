@@ -9,7 +9,7 @@ add_library(common STATIC
 
 target_include_directories(common PUBLIC "include")
 
-target_link_libraries(common PRIVATE gui_base)
+target_link_libraries(common PUBLIC gui_base)
 
 enable_warnings(common)
 set_cpp_standard(common)

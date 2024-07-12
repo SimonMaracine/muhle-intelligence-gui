@@ -5,11 +5,11 @@
 #include <cstring>
 #include <utility>
 #include <csignal>
+#include <cerrno>
 
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/select.h>
-#include <errno.h>
 
 namespace subprocess {
     static bool newline_in_buffer(std::string_view buffer, std::size_t& bytes_up_to_newline) {
@@ -194,13 +194,13 @@ namespace subprocess {
 
     void Subprocess::wait() {
         if (waitpid(std::exchange(child_pid, -1), nullptr, 0) < 0) {
-            throw Error(std::string("Failed waiting for process: ") + strerror(errno));
+            throw Error(std::string("Failed waiting for subprocess: ") + strerror(errno));
         }
     }
 
     void Subprocess::terminate() {
         if (kill(std::exchange(child_pid, -1), SIGTERM) < 0) {
-            throw Error(std::string("Could not send terminate signal to process: ") + strerror(errno));
+            throw Error(std::string("Could not send terminate signal to subprocess: ") + strerror(errno));
         }
     }
 

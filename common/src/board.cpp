@@ -3,6 +3,7 @@
 #include <cmath>
 #include <utility>
 #include <unordered_map>
+#include <cstdlib>
 #include <cassert>
 
 namespace board {
@@ -61,14 +62,7 @@ namespace board {
             { "g1", 23 }
         };
 
-        const auto iter {map.find(string)};
-
-        if (iter != map.cend()) {
-            return iter->second;
-        }
-
-        assert(false);
-        return {};
+        return map.at(string);
     }
 
     static std::string_view string_from_index(Idx index) {
@@ -97,9 +91,7 @@ namespace board {
             case 21: return "a1";
             case 22: return "d1";
             case 23: return "g1";
-            default:
-                assert(false);
-                break;
+            default: std::abort();
         }
     }
 
