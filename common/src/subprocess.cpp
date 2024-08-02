@@ -1,15 +1,18 @@
 #include "common/subprocess.hpp"
 
+#include <string_view>
+#include <utility>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
-#include <utility>
 #include <csignal>
 #include <cerrno>
 
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/select.h>
+
+using namespace std::string_literals;
 
 namespace subprocess {
     static bool newline_in_buffer(std::string_view buffer, std::size_t& bytes_up_to_newline) {
@@ -27,18 +30,18 @@ namespace subprocess {
     Subprocess::Subprocess(const std::string& file_path) {
         int fd_r[2] {};
         if (pipe(fd_r) < 0) {
-            throw Error(std::string("Could not create reading pipe") + strerror(errno));
+            throw Error("Could not create reading pipe"s + strerror(errno));
         }
 
         int fd_w[2] {};
         if (pipe(fd_w) < 0) {
-            throw Error(std::string("Could not create writing pipe") + strerror(errno));
+            throw Error("Could not create writing pipe"s + strerror(errno));
         }
 
         const pid_t pid {fork()};
 
         if (pid < 0) {
-            throw Error(std::string("Could not create subprocess") + strerror(errno));
+            throw Error("Could not create subprocess"s + strerror(errno));
         } else if (pid == 0) {
             close(fd_r[0]);
             close(fd_w[1]);
@@ -106,9 +109,9 @@ namespace subprocess {
             std::size_t bytes_up_to_newline {};
 
             if (newline_in_buffer(buffered, bytes_up_to_newline)) {
-                const auto current {std::string(buffered, bytes_up_to_newline)};
+                const auto current {std::string(buffered, 0, bytes_up_to_newline)};
 
-                buffered = std::string(buffered, bytes_up_to_newline, buffered.size());
+                buffered = std::string(buffered, bytes_up_to_newline, buffered.size() - bytes_up_to_newline);
 
                 return std::make_optional(current);
             }
@@ -125,7 +128,7 @@ namespace subprocess {
         const int result {select(input + 1, &set, nullptr, nullptr, &time)};
 
         if (result < 0) {
-            throw Error(std::string("Could not poll read file: ") + strerror(errno));
+            throw Error("Could not poll read file: "s + strerror(errno));
         } else if (result != 1) {
             return std::nullopt;
         }
@@ -146,7 +149,7 @@ namespace subprocess {
             if (bytes < 0) {
                 buffered += current;
 
-                throw Error(std::string("Could not read from file: ") + strerror(errno));
+                throw Error("Could not read from file: "s + strerror(errno));
             }
 
             if (bytes == 0) {
@@ -158,7 +161,7 @@ namespace subprocess {
             std::size_t bytes_up_to_newline {};
 
             if (newline_in_buffer(buffer, bytes_up_to_newline)) {
-                current += std::string(buffer, bytes_up_to_newline);
+                current += std::string(buffer, 0, bytes_up_to_newline);
 
                 return std::make_optional(
                     std::exchange(buffered, std::string(buffer, bytes_up_to_newline, static_cast<std::size_t>(bytes)))
@@ -178,7 +181,7 @@ namespace subprocess {
             const ssize_t bytes {::write(output, buffer, size)};
 
             if (bytes < 0) {
-                throw Error(std::string("Could not write to file: ") + strerror(errno));
+                throw Error("Could not write to file: "s + strerror(errno));
             }
 
             if (static_cast<std::size_t>(bytes) < size) {
@@ -194,13 +197,13 @@ namespace subprocess {
 
     void Subprocess::wait() {
         if (waitpid(std::exchange(child_pid, -1), nullptr, 0) < 0) {
-            throw Error(std::string("Failed waiting for subprocess: ") + strerror(errno));
+            throw Error("Failed waiting for subprocess: "s + strerror(errno));
         }
     }
 
     void Subprocess::terminate() {
         if (kill(std::exchange(child_pid, -1), SIGTERM) < 0) {
-            throw Error(std::string("Could not send terminate signal to subprocess: ") + strerror(errno));
+            throw Error("Could not send terminate signal to subprocess: "s + strerror(errno));
         }
     }
 
