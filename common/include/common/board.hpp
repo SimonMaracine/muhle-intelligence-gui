@@ -119,11 +119,12 @@ namespace board {
         static Move create_place_take(Idx place_index, Idx take_index);
         static Move create_move(Idx source_index, Idx destination_index);
         static Move create_move_take(Idx source_index, Idx destination_index, Idx take_index);
-        Idx get_index(ImVec2 position) const;
-        unsigned int count_pieces(Player player) const;
+        static unsigned int count_pieces(const Board& board, Player player);
         static Player opponent(Player player);
         static bool point_in_circle(ImVec2 point, ImVec2 circle, float radius);
+        Idx get_index(ImVec2 position) const;
 
+        // Game data
         Board board {};
         Player turn {Player::White};
         GameOver game_over {GameOver::None};

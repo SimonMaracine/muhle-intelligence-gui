@@ -241,7 +241,7 @@ namespace board {
 
     void MuhleBoard::debug() const {
         if (ImGui::Begin("Board Internal")) {
-            const char* game_over_string = nullptr;
+            const char* game_over_string {nullptr};
 
             switch (game_over) {
                 case GameOver::None:
@@ -511,7 +511,7 @@ namespace board {
             return;
         }
 
-        if (count_pieces(turn) < 3) {
+        if (count_pieces(board, turn) < 3) {
             game_over = static_cast<GameOver>(opponent(turn));
         }
     }
@@ -560,7 +560,7 @@ namespace board {
         if (plies < 18) {
             generate_moves_phase1(local_board, moves, turn);
         } else {
-            if (count_pieces(turn) == 3) {
+            if (count_pieces(local_board, turn) == 3) {
                 generate_moves_phase3(local_board, moves, turn);
             } else {
                 generate_moves_phase2(local_board, moves, turn);
@@ -992,22 +992,7 @@ namespace board {
         return move;
     }
 
-    Idx MuhleBoard::get_index(ImVec2 position) const {
-        for (Idx i {0}; i < 24; i++) {
-            const ImVec2 node {
-                static_cast<float>(NODE_POSITIONS[i][0]) * board_unit + board_offset.x,
-                static_cast<float>(NODE_POSITIONS[i][1]) * board_unit + board_offset.y
-            };
-
-            if (point_in_circle(position, node, board_unit / NODE_RADIUS)) {
-                return i;
-            }
-        }
-
-        return NULL_INDEX;
-    }
-
-    unsigned int MuhleBoard::count_pieces(Player player) const {
+    unsigned int MuhleBoard::count_pieces(const Board& board, Player player) {
         unsigned int result {0};
 
         for (const Piece piece : board) {
@@ -1030,6 +1015,21 @@ namespace board {
         const float length {std::pow(subtracted.x * subtracted.x + subtracted.y * subtracted.y, 0.5f)};
 
         return length < radius;
+    }
+
+    Idx MuhleBoard::get_index(ImVec2 position) const {
+        for (Idx i {0}; i < 24; i++) {
+            const ImVec2 node {
+                static_cast<float>(NODE_POSITIONS[i][0]) * board_unit + board_offset.x,
+                static_cast<float>(NODE_POSITIONS[i][1]) * board_unit + board_offset.y
+            };
+
+            if (point_in_circle(position, node, board_unit / NODE_RADIUS)) {
+                return i;
+            }
+        }
+
+        return NULL_INDEX;
     }
 
     Move move_from_string(std::string_view string) {
