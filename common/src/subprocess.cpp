@@ -15,7 +15,7 @@
 using namespace std::string_literals;
 
 namespace subprocess {
-    static bool newline_in_buffer(std::string_view buffer, std::size_t& bytes_up_to_newline) {
+    static bool newline_in_buffer(std::string_view buffer, std::size_t& bytes_up_to_newline) noexcept {
         for (std::size_t i {0}; i < buffer.size(); i++) {
             if (buffer[i] == '\n') {
                 bytes_up_to_newline = i + 1;  // Including newline
@@ -68,38 +68,38 @@ namespace subprocess {
             // Parent reads from fd_r[0]
             // Parent writes to fd_w[1]
 
-            input = fd_r[0];
-            output = fd_w[1];
-            child_pid = pid;
+            m_input = fd_r[0];
+            m_output = fd_w[1];
+            m_child_pid = pid;
         }
     }
 
     Subprocess::~Subprocess() noexcept {
-        if (!(child_pid < 0)) {
+        if (!(m_child_pid < 0)) {
             std::abort();
         }
     }
 
     Subprocess::Subprocess(Subprocess&& other) noexcept {
-        input = other.input;
-        output = other.output;
-        child_pid = other.child_pid;
-        buffered = std::move(other.buffered);
+        m_input = other.m_input;
+        m_output = other.m_output;
+        m_child_pid = other.m_child_pid;
+        m_buffered = std::move(other.m_buffered);
 
-        other.child_pid = -1;
+        other.m_child_pid = -1;
     }
 
     Subprocess& Subprocess::operator=(Subprocess&& other) noexcept {
-        if (!(child_pid < 0)) {
+        if (!(m_child_pid < 0)) {
             std::abort();
         }
 
-        input = other.input;
-        output = other.output;
-        child_pid = other.child_pid;
-        buffered = std::move(other.buffered);
+        m_input = other.m_input;
+        m_output = other.m_output;
+        m_child_pid = other.m_child_pid;
+        m_buffered = std::move(other.m_buffered);
 
-        other.child_pid = -1;
+        other.m_child_pid = -1;
 
         return *this;
     }
@@ -108,10 +108,10 @@ namespace subprocess {
         {
             std::size_t bytes_up_to_newline {};
 
-            if (newline_in_buffer(buffered, bytes_up_to_newline)) {
-                const auto current {std::string(buffered, 0, bytes_up_to_newline)};
+            if (newline_in_buffer(m_buffered, bytes_up_to_newline)) {
+                const auto current {std::string(m_buffered, 0, bytes_up_to_newline)};
 
-                buffered = std::string(buffered, bytes_up_to_newline, buffered.size() - bytes_up_to_newline);
+                m_buffered = std::string(m_buffered, bytes_up_to_newline, m_buffered.size() - bytes_up_to_newline);
 
                 return std::make_optional(current);
             }
@@ -119,13 +119,13 @@ namespace subprocess {
 
         fd_set set;
         FD_ZERO(&set);
-        FD_SET(input, &set);
+        FD_SET(m_input, &set);
 
         timeval time;
         time.tv_sec = 0;
         time.tv_usec = 0;
 
-        const int result {select(input + 1, &set, nullptr, nullptr, &time)};
+        const int result {select(m_input + 1, &set, nullptr, nullptr, &time)};
 
         if (result < 0) {
             throw Error("Could not poll read file: "s + strerror(errno));
@@ -144,16 +144,16 @@ namespace subprocess {
 
         while (true) {
             char buffer[256] {};
-            const ssize_t bytes {::read(input, buffer, sizeof(buffer))};
+            const ssize_t bytes {::read(m_input, buffer, sizeof(buffer))};
 
             if (bytes < 0) {
-                buffered += current;
+                m_buffered += current;
 
                 throw Error("Could not read from file: "s + strerror(errno));
             }
 
             if (bytes == 0) {
-                buffered += current;
+                m_buffered += current;
 
                 return std::nullopt;
             }
@@ -164,7 +164,7 @@ namespace subprocess {
                 current += std::string(buffer, 0, bytes_up_to_newline);
 
                 return std::make_optional(
-                    std::exchange(buffered, std::string(buffer, bytes_up_to_newline, static_cast<std::size_t>(bytes)))
+                    std::exchange(m_buffered, std::string(buffer, bytes_up_to_newline, static_cast<std::size_t>(bytes)))
                     + current
                 );
             } else {
@@ -178,7 +178,7 @@ namespace subprocess {
         std::size_t size {data.size()};
 
         while (true) {
-            const ssize_t bytes {::write(output, buffer, size)};
+            const ssize_t bytes {::write(m_output, buffer, size)};
 
             if (bytes < 0) {
                 throw Error("Could not write to file: "s + strerror(errno));
@@ -196,18 +196,18 @@ namespace subprocess {
     }
 
     void Subprocess::wait() {
-        if (waitpid(std::exchange(child_pid, -1), nullptr, 0) < 0) {
+        if (waitpid(std::exchange(m_child_pid, -1), nullptr, 0) < 0) {
             throw Error("Failed waiting for subprocess: "s + strerror(errno));
         }
     }
 
     void Subprocess::terminate() {
-        if (kill(std::exchange(child_pid, -1), SIGTERM) < 0) {
+        if (kill(std::exchange(m_child_pid, -1), SIGTERM) < 0) {
             throw Error("Could not send terminate signal to subprocess: "s + strerror(errno));
         }
     }
 
     bool Subprocess::active() const noexcept {
-        return child_pid != -1;
+        return m_child_pid != -1;
     }
 }

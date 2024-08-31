@@ -13,8 +13,8 @@ void MuhlePlayer::start() {
     io.ConfigWindowsMoveFromTitleBarOnly = true;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    muhle_board = board::MuhleBoard([this](const board::Move& move, board::Player turn) {
-        if (!muhle_process.active()) {
+    m_muhle_board = board::MuhleBoard([this](const board::Move& move, board::Player turn) {
+        if (!m_muhle_process.active()) {
             return;
         }
 
@@ -22,22 +22,22 @@ void MuhlePlayer::start() {
 
         switch (turn) {
             case board::Player::White:
-                player = white;
+                player = m_white;
                 break;
             case board::Player::Black:
-                player = black;
+                player = m_black;
                 break;
         }
 
         switch (player) {
             case PlayerHuman:
                 try {
-                    muhle_process.write("move " + board::move_to_string(move) + '\n');
+                    m_muhle_process.write("move " + board::move_to_string(move) + '\n');
                 } catch (const subprocess::Error& e) {
                     terminate_process(e.what());
                 }
 
-                state = State::NextTurn;
+                m_state = State::NextTurn;
 
                 break;
             case PlayerComputer:
@@ -52,33 +52,33 @@ void MuhlePlayer::update() {
     controls();
     load_engine_dialog();
 
-    if (!muhle_process.active()) {
+    if (!m_muhle_process.active()) {
         return;
     }
 
-    if (muhle_board.get_game_over() != board::GameOver::None) {
+    if (m_muhle_board.get_game_over() != board::GameOver::None) {
         return;
     }
 
-    switch (state) {
+    switch (m_state) {
         case State::NextTurn: {
             int player {};
 
-            switch (muhle_board.get_turn()) {
+            switch (m_muhle_board.get_turn()) {
                 case board::Player::White:
-                    player = white;
+                    player = m_white;
                     break;
                 case board::Player::Black:
-                    player = black;
+                    player = m_black;
                     break;
             }
 
             switch (player) {
                 case PlayerHuman:
-                    state = State::HumanThinking;
+                    m_state = State::HumanThinking;
                     break;
                 case PlayerComputer:
-                    state = State::ComputerBegin;
+                    m_state = State::ComputerBegin;
                     break;
             }
 
@@ -88,20 +88,20 @@ void MuhlePlayer::update() {
             break;
         case State::ComputerBegin:
             try {
-                muhle_process.write("go\n");
+                m_muhle_process.write("go\n");
             } catch (const subprocess::Error& e) {
                 terminate_process(e.what());
                 break;
             }
 
-            state = State::ComputerThinking;
+            m_state = State::ComputerThinking;
 
             break;
         case State::ComputerThinking: {
             std::optional<std::string> message;
 
             try {
-                message = muhle_process.read();
+                message = m_muhle_process.read();
             } catch (const subprocess::Error& e) {
                 terminate_process(e.what());
                 break;
@@ -122,20 +122,20 @@ void MuhlePlayer::update() {
 
                 switch (move.type) {
                     case board::MoveType::Place:
-                        muhle_board.place(move.place.place_index);
+                        m_muhle_board.place(move.place.place_index);
                         break;
                     case board::MoveType::PlaceTake:
-                        muhle_board.place_take(move.place_take.place_index, move.place_take.take_index);
+                        m_muhle_board.place_take(move.place_take.place_index, move.place_take.take_index);
                         break;
                     case board::MoveType::Move:
-                        muhle_board.move(move.move.source_index, move.move.destination_index);
+                        m_muhle_board.move(move.move.source_index, move.move.destination_index);
                         break;
                     case board::MoveType::MoveTake:
-                        muhle_board.move_take(move.move_take.source_index, move.move_take.destination_index, move.move_take.take_index);
+                        m_muhle_board.move_take(move.move_take.source_index, move.move_take.destination_index, move.move_take.take_index);
                         break;
                 }
 
-                state = State::NextTurn;
+                m_state = State::NextTurn;
             }
 
             break;
@@ -149,7 +149,7 @@ void MuhlePlayer::stop() {
 
 void MuhlePlayer::load_engine(const std::string& file_path) {
     try {
-        muhle_process = subprocess::Subprocess(file_path);
+        m_muhle_process = subprocess::Subprocess(file_path);
     } catch (const subprocess::Error& e) {
         std::cerr << "Could not start engine: " << e.what() << '\n';
         return;
@@ -171,10 +171,14 @@ void MuhlePlayer::load_engine(const std::string& file_path) {
             std::optional<std::string> message;
 
             try {
-                message = muhle_process.read();
+                message = m_muhle_process.read();
             } catch (const subprocess::Error& e) {
                 terminate_process(e.what());
                 return;
+            }
+
+            if (!message) {
+                continue;
             }
 
             if (*message == "ready\n") {
@@ -187,29 +191,29 @@ void MuhlePlayer::load_engine(const std::string& file_path) {
     }
 
     try {
-        muhle_process.write("init\n");
+        m_muhle_process.write("init\n");
     } catch (const subprocess::Error& e) {
         terminate_process(e.what());
         return;
     }
 
-    engine_filename = std::filesystem::path(file_path).filename();
+    m_engine_filename = std::filesystem::path(file_path).filename();
 }
 
 void MuhlePlayer::unload_engine() {
-    if (!muhle_process.active()) {
+    if (!m_muhle_process.active()) {
         return;
     }
 
     try {
-        muhle_process.write("quit\n");
+        m_muhle_process.write("quit\n");
     } catch (const subprocess::Error& e) {
         terminate_process(e.what());
         return;
     }
 
     try {
-        muhle_process.wait();
+        m_muhle_process.wait();
     } catch (const subprocess::Error& e) {
         std::cerr << e.what() << '\n';
     }
@@ -221,7 +225,7 @@ void MuhlePlayer::main_menu_bar() {
             if (ImGui::MenuItem("Load Engine")) {
                 load_engine();
             }
-            if (ImGui::MenuItem("Reset", nullptr, nullptr, state != State::ComputerThinking)) {
+            if (ImGui::MenuItem("Reset", nullptr, nullptr, m_state != State::ComputerThinking)) {
                 reset();
             }
             if (ImGui::BeginMenu("Import Position")) {
@@ -295,16 +299,16 @@ void MuhlePlayer::import_position() {
 }
 
 void MuhlePlayer::reset() {
-    if (muhle_process.active()) {
+    if (m_muhle_process.active()) {
         try {
-            muhle_process.write("newgame\n");
+            m_muhle_process.write("newgame\n");
         } catch (const subprocess::Error& e) {
             terminate_process(e.what());
         }
     }
 
-    muhle_board.reset();
-    state = State::NextTurn;
+    m_muhle_board.reset();
+    m_state = State::NextTurn;
 }
 
 void MuhlePlayer::about() {
@@ -321,13 +325,13 @@ void MuhlePlayer::notation() {
 }
 
 void MuhlePlayer::board() {
-    muhle_board.update(state == State::HumanThinking);
-    muhle_board.debug();
+    m_muhle_board.update(m_state == State::HumanThinking);
+    m_muhle_board.debug();
 }
 
 void MuhlePlayer::controls() {
     if (ImGui::Begin("Controls")) {
-        ImGui::Text("Engine: %s", engine_filename.c_str());
+        ImGui::Text("Engine: %s", m_engine_filename.c_str());
         ImGui::Separator();
 
         ImGui::Spacing();
@@ -336,7 +340,7 @@ void MuhlePlayer::controls() {
 
         }
 
-        if (state == State::ComputerThinking) {
+        if (m_state == State::ComputerThinking) {
             ImGui::SameLine();
             ImGui::Text("Thinking...");
         }
@@ -348,15 +352,15 @@ void MuhlePlayer::controls() {
 
         // FIXME don't change state when user made half move
 
-        if (state != State::ComputerThinking) {
-            if (ImGui::RadioButton("Human##w", &white, 0)) {
-                state = State::NextTurn;
+        if (m_state != State::ComputerThinking) {
+            if (ImGui::RadioButton("Human##w", &m_white, 0)) {
+                m_state = State::NextTurn;
             }
 
             ImGui::SameLine();
 
-            if (ImGui::RadioButton("Computer##w", &white, 1)) {
-                state = State::NextTurn;
+            if (ImGui::RadioButton("Computer##w", &m_white, 1)) {
+                m_state = State::NextTurn;
             }
         } else {
             ImGui::RadioButton("Human##w", false);
@@ -367,15 +371,15 @@ void MuhlePlayer::controls() {
         ImGui::Text("Black");
         ImGui::SameLine();
 
-        if (state != State::ComputerThinking) {
-            if (ImGui::RadioButton("Human##b", &black, 0)) {
-                state = State::NextTurn;
+        if (m_state != State::ComputerThinking) {
+            if (ImGui::RadioButton("Human##b", &m_black, 0)) {
+                m_state = State::NextTurn;
             }
 
             ImGui::SameLine();
 
-            if (ImGui::RadioButton("Computer##b", &black, 1)) {
-                state = State::NextTurn;
+            if (ImGui::RadioButton("Computer##b", &m_black, 1)) {
+                m_state = State::NextTurn;
             }
         } else {
             ImGui::RadioButton("Human##b", false);
@@ -391,7 +395,7 @@ void MuhlePlayer::terminate_process(const char* message) {
     std::cerr << message << '\n';
 
     try {
-        muhle_process.terminate();
+        m_muhle_process.terminate();
     } catch (const subprocess::Error& e) {
         std::cerr << e.what() << '\n';
     }

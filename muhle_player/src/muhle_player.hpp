@@ -7,14 +7,15 @@
 #include <common/board.hpp>
 #include <common/subprocess.hpp>
 
-struct MuhlePlayer : public gui_base::GuiApplication {
+class MuhlePlayer : public gui_base::GuiApplication {
+public:
     explicit MuhlePlayer(const gui_base::WindowProperties& properties)
         : gui_base::GuiApplication(properties) {}
 
     void start() override;
     void update() override;
     void stop() override;
-
+private:
     void load_engine(const std::string& file_path);
     void unload_engine();
 
@@ -31,21 +32,23 @@ struct MuhlePlayer : public gui_base::GuiApplication {
     void terminate_process(const char* message);
     std::vector<std::string> parse_message(const std::string& message);
 
-    board::MuhleBoard muhle_board;
-    subprocess::Subprocess muhle_process;
+    enum PlayerType {
+        PlayerHuman,
+        PlayerComputer
+    };
 
-    std::string engine_filename {""};
+    board::MuhleBoard m_muhle_board;
+    subprocess::Subprocess m_muhle_process;
 
-    int white {PlayerHuman};
-    int black {PlayerComputer};
+    std::string m_engine_filename {""};
+
+    int m_white {PlayerHuman};
+    int m_black {PlayerComputer};
 
     enum class State {
         NextTurn,
         HumanThinking,
         ComputerBegin,
         ComputerThinking
-    } state {State::NextTurn};
-
-    static constexpr int PlayerHuman {0};
-    static constexpr int PlayerComputer {1};
+    } m_state {State::NextTurn};
 };

@@ -22,11 +22,11 @@ namespace subprocess {
         void terminate();
         bool active() const noexcept;
     private:
-        int input {-1};  // Read from
-        int output {-1};  // Write to
-        int child_pid {-1};
+        int m_input {-1};  // Read from
+        int m_output {-1};  // Write to
+        int m_child_pid {-1};
 
-        mutable std::string buffered;
+        mutable std::string m_buffered;
     };
 
     struct Error : public std::runtime_error {

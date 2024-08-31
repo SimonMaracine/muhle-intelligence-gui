@@ -1,12 +1,15 @@
 #include "common/board.hpp"
 
-#include <cmath>
 #include <utility>
 #include <unordered_map>
+#include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <cassert>
 
 namespace board {
+    static constexpr float NODE_RADIUS {2.2f};
+
     static const int NODE_POSITIONS[24][2] {
         { 2, 2 },
         { 5, 2 },
@@ -96,8 +99,8 @@ namespace board {
     }
 
     MuhleBoard::MuhleBoard(const MoveCallback& move_callback)
-        : move_callback(move_callback) {
-        legal_moves = generate_moves();
+        : m_move_callback(move_callback) {
+        m_legal_moves = generate_moves();
     }
 
     void MuhleBoard::update(bool user_input) {
@@ -121,8 +124,8 @@ namespace board {
             const ImColor COLOR {ImColor(200, 200, 200)};
             const float THICKNESS {2.0f};
 
-            board_unit = UNIT;
-            board_offset = OFFSET;
+            m_board_unit = UNIT;
+            m_board_offset = OFFSET;
 
             draw_list->AddRectFilled(canvas_p0, canvas_p1, ImColor(45, 45, 45));
 
@@ -168,50 +171,50 @@ namespace board {
             draw_list->AddText(ImVec2(1.0f * UNIT + OFFSET.x, 8.0f * UNIT + OFFSET.y), COLOR, "1");
 
             for (Idx i {0}; i < 24; i++) {
-                switch (board[i]) {
+                switch (m_board[i]) {
                     case Piece::None:
                         break;
                     case Piece::White:
                         draw_list->AddCircleFilled(
                             ImVec2(
-                                static_cast<float>(NODE_POSITIONS[i][0]) * board_unit + board_offset.x,
-                                static_cast<float>(NODE_POSITIONS[i][1]) * board_unit + board_offset.y
+                                static_cast<float>(NODE_POSITIONS[i][0]) * m_board_unit + m_board_offset.x,
+                                static_cast<float>(NODE_POSITIONS[i][1]) * m_board_unit + m_board_offset.y
                             ),
-                            board_unit / NODE_RADIUS,
+                            m_board_unit / NODE_RADIUS,
                             ImColor(235, 235, 235, 255)
                         );
                         break;
                     case Piece::Black:
                         draw_list->AddCircleFilled(
                             ImVec2(
-                                static_cast<float>(NODE_POSITIONS[i][0]) * board_unit + board_offset.x,
-                                static_cast<float>(NODE_POSITIONS[i][1]) * board_unit + board_offset.y
+                                static_cast<float>(NODE_POSITIONS[i][0]) * m_board_unit + m_board_offset.x,
+                                static_cast<float>(NODE_POSITIONS[i][1]) * m_board_unit + m_board_offset.y
                             ),
-                            board_unit / NODE_RADIUS,
+                            m_board_unit / NODE_RADIUS,
                             ImColor(15, 15, 15, 255)
                         );
                         break;
                 }
             }
 
-            const float WIDTH {board_unit < 55.0f ? 2.0f : 3.0f};
+            const float WIDTH {m_board_unit < 55.0f ? 2.0f : 3.0f};
 
-            if (user_stored_index1 != NULL_INDEX) {
+            if (m_user_stored_index1 != NULL_INDEX) {
                 const ImVec2 position {
-                    static_cast<float>(NODE_POSITIONS[user_stored_index1][0]) * board_unit + board_offset.x,
-                    static_cast<float>(NODE_POSITIONS[user_stored_index1][1]) * board_unit + board_offset.y
+                    static_cast<float>(NODE_POSITIONS[m_user_stored_index1][0]) * m_board_unit + m_board_offset.x,
+                    static_cast<float>(NODE_POSITIONS[m_user_stored_index1][1]) * m_board_unit + m_board_offset.y
                 };
 
-                draw_list->AddCircle(position, board_unit / NODE_RADIUS + 1.0f, ImColor(240, 30, 30, 255), 0, WIDTH);
+                draw_list->AddCircle(position, m_board_unit / NODE_RADIUS + 1.0f, ImColor(240, 30, 30, 255), 0, WIDTH);
             }
 
-            if (user_stored_index2 != NULL_INDEX) {
+            if (m_user_stored_index2 != NULL_INDEX) {
                 const ImVec2 position {
-                    static_cast<float>(NODE_POSITIONS[user_stored_index2][0]) * board_unit + board_offset.x,
-                    static_cast<float>(NODE_POSITIONS[user_stored_index2][1]) * board_unit + board_offset.y
+                    static_cast<float>(NODE_POSITIONS[m_user_stored_index2][0]) * m_board_unit + m_board_offset.x,
+                    static_cast<float>(NODE_POSITIONS[m_user_stored_index2][1]) * m_board_unit + m_board_offset.y
                 };
 
-                draw_list->AddCircle(position, board_unit / NODE_RADIUS + 1.0f, ImColor(30, 30, 240, 255), 0, WIDTH);
+                draw_list->AddCircle(position, m_board_unit / NODE_RADIUS + 1.0f, ImColor(30, 30, 240, 255), 0, WIDTH);
             }
 
             if (user_input) {
@@ -225,25 +228,25 @@ namespace board {
     }
 
     void MuhleBoard::reset(std::string_view position_string) {
-        board = {};
-        turn = Player::White;
-        game_over = GameOver::None;
-        plies = 0;
-        plies_without_advancement = 0;
-        positions.clear();
+        m_board = {};
+        m_turn = Player::White;
+        m_game_over = GameOver::None;
+        m_plies = 0;
+        m_plies_without_advancement = 0;
+        m_positions.clear();
 
-        user_stored_index1 = NULL_INDEX;
-        user_stored_index2 = NULL_INDEX;
-        user_must_take_piece = false;
+        m_user_stored_index1 = NULL_INDEX;
+        m_user_stored_index2 = NULL_INDEX;
+        m_user_must_take_piece = false;
 
-        legal_moves = generate_moves();
+        m_legal_moves = generate_moves();
     }
 
     void MuhleBoard::debug() const {
         if (ImGui::Begin("Board Internal")) {
-            const char* game_over_string {nullptr};
+            const char* game_over_string {};
 
-            switch (game_over) {
+            switch (m_game_over) {
                 case GameOver::None:
                     game_over_string = "None";
                     break;
@@ -258,46 +261,46 @@ namespace board {
                     break;
             }
 
-            ImGui::Text("Turn: %s", turn == Player::White ? "white" : "black");
+            ImGui::Text("Turn: %s", m_turn == Player::White ? "white" : "black");
             ImGui::Text("Game over: %s", game_over_string);
-            ImGui::Text("Plies: %u", plies);
-            ImGui::Text("Plies without advancement: %u", plies_without_advancement);
-            ImGui::Text("Positions: %lu", positions.size());
-            ImGui::Text("User stored index 1: %d", user_stored_index1);
-            ImGui::Text("User stored index 2: %d", user_stored_index2);
-            ImGui::Text("User must take piece: %s", user_must_take_piece ? "true" : "false");
-            ImGui::Text("Legal moves: %lu", legal_moves.size());
+            ImGui::Text("Plies: %u", m_plies);
+            ImGui::Text("Plies without advancement: %u", m_plies_without_advancement);
+            ImGui::Text("Positions: %lu", m_positions.size());
+            ImGui::Text("User stored index 1: %d", m_user_stored_index1);
+            ImGui::Text("User stored index 2: %d", m_user_stored_index2);
+            ImGui::Text("User must take piece: %s", m_user_must_take_piece ? "true" : "false");
+            ImGui::Text("Legal moves: %lu", m_legal_moves.size());
         }
 
         ImGui::End();
     }
 
     void MuhleBoard::place(Idx place_index) {
-        assert(board[place_index] == Piece::None);
+        assert(m_board[place_index] == Piece::None);
 
-        board[place_index] = static_cast<Piece>(turn);
+        m_board[place_index] = static_cast<Piece>(m_turn);
 
         Move move;
         move.type = MoveType::Place;
         move.place.place_index = place_index;
-        move_callback(move, turn);
+        m_move_callback(move, m_turn);
 
         finish_turn();
         check_winner_blocking();
     }
 
     void MuhleBoard::place_take(Idx place_index, Idx take_index) {
-        assert(board[place_index] == Piece::None);
-        assert(board[take_index] != Piece::None);
+        assert(m_board[place_index] == Piece::None);
+        assert(m_board[take_index] != Piece::None);
 
-        board[place_index] = static_cast<Piece>(turn);
-        board[take_index] = Piece::None;
+        m_board[place_index] = static_cast<Piece>(m_turn);
+        m_board[take_index] = Piece::None;
 
         Move move;
         move.type = MoveType::PlaceTake;
         move.place_take.place_index = place_index;
         move.place_take.take_index = take_index;
-        move_callback(move, turn);
+        m_move_callback(move, m_turn);
 
         finish_turn();
         check_winner_material();
@@ -305,37 +308,37 @@ namespace board {
     }
 
     void MuhleBoard::move(Idx source_index, Idx destination_index) {
-        assert(board[source_index] != Piece::None);
-        assert(board[destination_index] == Piece::None);
+        assert(m_board[source_index] != Piece::None);
+        assert(m_board[destination_index] == Piece::None);
 
-        std::swap(board[source_index], board[destination_index]);
+        std::swap(m_board[source_index], m_board[destination_index]);
 
         Move move;
         move.type = MoveType::Move;
         move.move.source_index = source_index;
         move.move.destination_index = destination_index;
-        move_callback(move, turn);
+        m_move_callback(move, m_turn);
 
         finish_turn(false);
         check_winner_blocking();
         check_fifty_move_rule();
-        check_threefold_repetition({board, turn});
+        check_threefold_repetition({m_board, m_turn});
     }
 
     void MuhleBoard::move_take(Idx source_index, Idx destination_index, Idx take_index) {
-        assert(board[source_index] != Piece::None);
-        assert(board[destination_index] == Piece::None);
-        assert(board[take_index] != Piece::None);
+        assert(m_board[source_index] != Piece::None);
+        assert(m_board[destination_index] == Piece::None);
+        assert(m_board[take_index] != Piece::None);
 
-        std::swap(board[source_index], board[destination_index]);
-        board[take_index] = Piece::None;
+        std::swap(m_board[source_index], m_board[destination_index]);
+        m_board[take_index] = Piece::None;
 
         Move move;
         move.type = MoveType::MoveTake;
         move.move_take.source_index = source_index;
         move.move_take.destination_index = destination_index;
         move.move_take.take_index = take_index;
-        move_callback(move, turn);
+        m_move_callback(move, m_turn);
 
         finish_turn();
         check_winner_material();
@@ -347,7 +350,7 @@ namespace board {
             return;
         }
 
-        if (game_over != GameOver::None) {
+        if (m_game_over != GameOver::None) {
             return;
         }
 
@@ -359,23 +362,16 @@ namespace board {
                 return;
             }
 
-            const bool phase_two {plies >= 18};
-
-            if (phase_two) {
-                if (select_piece(index)) {
-                    return;
-                }
-            }
-
-            if (phase_two) {
-                if (user_must_take_piece) {
-                    try_move_take(user_stored_index1, user_stored_index2, index);
+            if (m_plies >= 18) {
+                if (m_user_must_take_piece) {
+                    try_move_take(m_user_stored_index1, m_user_stored_index2, index);
                 } else {
-                    try_move(user_stored_index1, index);
+                    try_move(m_user_stored_index1, index);
+                    select(index);
                 }
             } else {
-                if (user_must_take_piece) {
-                    try_place_take(user_stored_index2, index);
+                if (m_user_must_take_piece) {
+                    try_place_take(m_user_stored_index2, index);
                 } else {
                     try_place(index);
                 }
@@ -383,170 +379,170 @@ namespace board {
         }
     }
 
-    bool MuhleBoard::select_piece(Idx index) {
-        if (user_stored_index1 == NULL_INDEX) {
-            if (board[index] == static_cast<Piece>(turn)) {
-                user_stored_index1 = index;
-                return true;
+    void MuhleBoard::select(Idx index) {
+        if (m_user_stored_index1 == NULL_INDEX) {
+            if (m_board[index] == static_cast<Piece>(m_turn)) {
+                m_user_stored_index1 = index;
             }
         } else {
-            if (index == user_stored_index1) {
-                if (user_stored_index2 == NULL_INDEX) {
-                    user_stored_index1 = NULL_INDEX;
+            if (index == m_user_stored_index1) {
+                if (m_user_stored_index2 == NULL_INDEX) {
+                    m_user_stored_index1 = NULL_INDEX;
                 }
-
-                return true;
-            } else if (board[index] == static_cast<Piece>(turn)) {
-                if (user_stored_index2 == NULL_INDEX) {
-                    user_stored_index1 = index;
+            } else if (m_board[index] == static_cast<Piece>(m_turn)) {
+                if (m_user_stored_index2 == NULL_INDEX) {
+                    m_user_stored_index1 = index;
                 }
-
-                return true;
             }
         }
-
-        return false;
     }
 
     void MuhleBoard::try_place(Idx place_index) {
-        for (const Move& m : legal_moves) {
-            if (m.type == MoveType::Place) {
-                if (m.place.place_index == place_index) {
-                    place(place_index);
-                    return;
-                }
-            }
+        auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
+            return move.type == MoveType::Place && move.place.place_index == place_index;
+        })};
+
+        if (iter != m_legal_moves.end()) {
+            place(place_index);
+            return;
         }
 
-        for (const Move& m : legal_moves) {
-            if (m.type == MoveType::PlaceTake) {
-                if (m.place_take.place_index == place_index) {
-                    user_must_take_piece = true;
-                    user_stored_index2 = place_index;
-                    return;
-                }
-            }
+        iter = std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
+            return move.type == MoveType::PlaceTake && move.place_take.place_index == place_index;
+        });
+
+        if (iter != m_legal_moves.end()) {
+            m_user_must_take_piece = true;
+            m_user_stored_index2 = place_index;
         }
     }
 
     void MuhleBoard::try_place_take(Idx place_index, Idx take_index) {
-        for (const Move& m : legal_moves) {
-            if (m.type == MoveType::PlaceTake) {
-                if (m.place_take.place_index == place_index && m.place_take.take_index == take_index) {
-                    place_take(place_index, take_index);
-                    return;
-                }
-            }
+        const auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
+            return (
+                move.type == MoveType::PlaceTake &&
+                move.place_take.place_index == place_index &&
+                move.place_take.take_index == take_index
+            );
+        })};
+
+        if (iter != m_legal_moves.end()) {
+            place_take(place_index, take_index);
         }
     }
 
     void MuhleBoard::try_move(Idx source_index, Idx destination_index) {
-        for (const Move& m : legal_moves) {
-            if (m.type == MoveType::Move) {
-                if (m.move.source_index == source_index && m.move.destination_index == destination_index) {
-                    move(source_index, destination_index);
-                    return;
-                }
-            }
+        auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
+            return (
+                move.type == MoveType::Move &&
+                move.move.source_index == source_index &&
+                move.move.destination_index == destination_index
+            );
+        })};
+
+        if (iter != m_legal_moves.end()) {
+            move(source_index, destination_index);
+            return;
         }
 
-        for (const Move& m : legal_moves) {
-            if (m.type == MoveType::MoveTake) {
-                if (m.move_take.source_index == source_index && m.move_take.destination_index == destination_index) {
-                    user_must_take_piece = true;
-                    user_stored_index2 = destination_index;
-                    return;
-                }
-            }
+        iter = std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
+            return (
+                move.type == MoveType::MoveTake &&
+                move.move_take.source_index == source_index &&
+                move.move_take.destination_index == destination_index
+            );
+        });
+
+        if (iter != m_legal_moves.end()) {
+            m_user_must_take_piece = true;
+            m_user_stored_index2 = destination_index;
         }
     }
 
     void MuhleBoard::try_move_take(Idx source_index, Idx destination_index, Idx take_index) {
-        for (const Move& m : legal_moves) {
-            if (m.type == MoveType::MoveTake) {
-                const bool match {
-                    m.move_take.source_index == source_index &&
-                    m.move_take.destination_index == destination_index &&
-                    m.move_take.take_index == take_index
-                };
+        const auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
+            return (
+                move.type == MoveType::MoveTake &&
+                move.move_take.source_index == source_index &&
+                move.move_take.destination_index == destination_index &&
+                move.move_take.take_index == take_index
+            );
+        })};
 
-                if (match) {
-                    move_take(source_index, destination_index, take_index);
-                    return;
-                }
-            }
+        if (iter != m_legal_moves.end()) {
+            move_take(source_index, destination_index, take_index);
         }
     }
 
     void MuhleBoard::finish_turn(bool advancement) {
-        if (turn == Player::White) {
-            turn = Player::Black;
+        if (m_turn == Player::White) {
+            m_turn = Player::Black;
         } else {
-            turn = Player::White;
+            m_turn = Player::White;
         }
 
-        plies++;
-        legal_moves = generate_moves();
+        m_plies++;
+        m_legal_moves = generate_moves();
 
         if (advancement) {
-            plies_without_advancement = 0;
-            positions.clear();
+            m_plies_without_advancement = 0;
+            m_positions.clear();
         } else {
-            plies_without_advancement++;
+            m_plies_without_advancement++;
         }
 
-        positions.push_back({board, turn});
+        m_positions.push_back({m_board, m_turn});
 
-        user_stored_index1 = NULL_INDEX;
-        user_stored_index2 = NULL_INDEX;
-        user_must_take_piece = false;
+        m_user_stored_index1 = NULL_INDEX;
+        m_user_stored_index2 = NULL_INDEX;
+        m_user_must_take_piece = false;
     }
 
     void MuhleBoard::check_winner_material() {
-        if (game_over != GameOver::None) {
+        if (m_game_over != GameOver::None) {
             return;
         }
 
-        if (plies < 18) {
+        if (m_plies < 18) {
             return;
         }
 
-        if (count_pieces(board, turn) < 3) {
-            game_over = static_cast<GameOver>(opponent(turn));
+        if (count_pieces(m_board, m_turn) < 3) {
+            m_game_over = static_cast<GameOver>(opponent(m_turn));
         }
     }
 
     void MuhleBoard::check_winner_blocking() {
-        if (game_over != GameOver::None) {
+        if (m_game_over != GameOver::None) {
             return;
         }
 
-        if (legal_moves.empty()) {
-            game_over = static_cast<GameOver>(opponent(turn));
+        if (m_legal_moves.empty()) {
+            m_game_over = static_cast<GameOver>(opponent(m_turn));
         }
     }
 
     void MuhleBoard::check_fifty_move_rule() {
-        if (game_over != GameOver::None) {
+        if (m_game_over != GameOver::None) {
             return;
         }
 
-        if (plies_without_advancement == 100) {
-            game_over = GameOver::TieBetweenBothPlayers;
+        if (m_plies_without_advancement == 100) {
+            m_game_over = GameOver::TieBetweenBothPlayers;
         }
     }
 
     void MuhleBoard::check_threefold_repetition(const Position& position) {
-        if (game_over != GameOver::None) {
+        if (m_game_over != GameOver::None) {
             return;
         }
 
         unsigned int repetitions {1};
 
-        for (auto iter {positions.begin()}; iter != std::prev(positions.end()); iter++) {
+        for (auto iter {m_positions.begin()}; iter != std::prev(m_positions.end()); iter++) {
             if (*iter == position) {
                 if (++repetitions == 3) {
-                    game_over = GameOver::TieBetweenBothPlayers;
+                    m_game_over = GameOver::TieBetweenBothPlayers;
                     return;
                 }
             }
@@ -555,15 +551,15 @@ namespace board {
 
     std::vector<Move> MuhleBoard::generate_moves() const {
         std::vector<Move> moves;
-        Board local_board {board};
+        Board local_board {m_board};
 
-        if (plies < 18) {
-            generate_moves_phase1(local_board, moves, turn);
+        if (m_plies < 18) {
+            generate_moves_phase1(local_board, moves, m_turn);
         } else {
-            if (count_pieces(local_board, turn) == 3) {
-                generate_moves_phase3(local_board, moves, turn);
+            if (count_pieces(local_board, m_turn) == 3) {
+                generate_moves_phase3(local_board, moves, m_turn);
             } else {
-                generate_moves_phase2(local_board, moves, turn);
+                generate_moves_phase2(local_board, moves, m_turn);
             }
         }
 
@@ -1020,11 +1016,11 @@ namespace board {
     Idx MuhleBoard::get_index(ImVec2 position) const {
         for (Idx i {0}; i < 24; i++) {
             const ImVec2 node {
-                static_cast<float>(NODE_POSITIONS[i][0]) * board_unit + board_offset.x,
-                static_cast<float>(NODE_POSITIONS[i][1]) * board_unit + board_offset.y
+                static_cast<float>(NODE_POSITIONS[i][0]) * m_board_unit + m_board_offset.x,
+                static_cast<float>(NODE_POSITIONS[i][1]) * m_board_unit + m_board_offset.y
             };
 
-            if (point_in_circle(position, node, board_unit / NODE_RADIUS)) {
+            if (point_in_circle(position, node, m_board_unit / NODE_RADIUS)) {
                 return i;
             }
         }

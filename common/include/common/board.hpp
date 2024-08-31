@@ -90,11 +90,11 @@ namespace board {
         void move(Idx source_index, Idx destination_index);
         void move_take(Idx source_index, Idx destination_index, Idx take_index);
 
-        Player get_turn() const { return turn; }
-        GameOver get_game_over() const { return game_over; }
+        Player get_turn() const { return m_turn; }
+        GameOver get_game_over() const { return m_game_over; }
     private:
         void update_user_input();
-        bool select_piece(Idx index);
+        void select(Idx index);
         void try_place(Idx place_index);
         void try_place_take(Idx place_index, Idx take_index);
         void try_move(Idx source_index, Idx destination_index);
@@ -125,23 +125,21 @@ namespace board {
         Idx get_index(ImVec2 position) const;
 
         // Game data
-        Board board {};
-        Player turn {Player::White};
-        GameOver game_over {GameOver::None};
-        unsigned int plies {};
-        unsigned int plies_without_advancement {};
-        std::vector<Position> positions;
+        Board m_board {};
+        Player m_turn {Player::White};
+        GameOver m_game_over {GameOver::None};
+        unsigned int m_plies {};
+        unsigned int m_plies_without_advancement {};
+        std::vector<Position> m_positions;
 
         // GUI data
-        float board_unit {};
-        ImVec2 board_offset {};
-        Idx user_stored_index1 {NULL_INDEX};
-        Idx user_stored_index2 {NULL_INDEX};
-        bool user_must_take_piece {false};
-        std::vector<Move> legal_moves;
-        MoveCallback move_callback {[](const Move&, Player) {}};
-
-        static constexpr float NODE_RADIUS {2.2f};
+        float m_board_unit {};
+        ImVec2 m_board_offset {};
+        Idx m_user_stored_index1 {NULL_INDEX};
+        Idx m_user_stored_index2 {NULL_INDEX};
+        bool m_user_must_take_piece {false};
+        std::vector<Move> m_legal_moves;
+        MoveCallback m_move_callback {[](const Move&, Player) {}};
     };
 
     Move move_from_string(std::string_view string);
