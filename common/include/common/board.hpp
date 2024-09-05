@@ -136,8 +136,8 @@ namespace board {
         // GUI data
         float m_board_unit {};
         ImVec2 m_board_offset {};
-        Idx m_user_selected_index {NULL_INDEX};
-        Idx m_user_take_action_index {NULL_INDEX};
+        Idx m_selected_index {NULL_INDEX};
+        Idx m_take_action_index {NULL_INDEX};
         std::vector<Move> m_legal_moves;
         std::function<void(const Move&)> m_move_callback;
     };

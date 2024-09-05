@@ -1,7 +1,6 @@
 #include "common/board.hpp"
 
 #include <utility>
-#include <unordered_map>
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -38,34 +37,32 @@ namespace board {
     };
 
     static Idx index_from_string(std::string_view string) {
-        const std::unordered_map<std::string_view, Idx> map {
-            { "a7", 0 },
-            { "d7", 1 },
-            { "g7", 2 },
-            { "b6", 3 },
-            { "d6", 4 },
-            { "f6", 5 },
-            { "c5", 6 },
-            { "d5", 7 },
-            { "e5", 8 },
-            { "a4", 9 },
-            { "b4", 10 },
-            { "c4", 11 },
-            { "e4", 12 },
-            { "f4", 13 },
-            { "g4", 14 },
-            { "c3", 15 },
-            { "d3", 16 },
-            { "e3", 17 },
-            { "b2", 18 },
-            { "d2", 19 },
-            { "f2", 20 },
-            { "a1", 21 },
-            { "d1", 22 },
-            { "g1", 23 }
-        };
+        if (string == "a7") return 0;
+        else if (string == "d7") return 1;
+        else if (string == "g7") return 2;
+        else if (string == "b6") return 3;
+        else if (string == "d6") return 4;
+        else if (string == "f6") return 5;
+        else if (string == "c5") return 6;
+        else if (string == "d5") return 7;
+        else if (string == "e5") return 8;
+        else if (string == "a4") return 9;
+        else if (string == "b4") return 10;
+        else if (string == "c4") return 11;
+        else if (string == "e4") return 12;
+        else if (string == "f4") return 13;
+        else if (string == "g4") return 14;
+        else if (string == "c3") return 15;
+        else if (string == "d3") return 16;
+        else if (string == "e3") return 17;
+        else if (string == "b2") return 18;
+        else if (string == "d2") return 19;
+        else if (string == "f2") return 20;
+        else if (string == "a1") return 21;
+        else if (string == "d1") return 22;
+        else if (string == "g1") return 23;
 
-        return map.at(string);
+        return {};
     }
 
     static std::string_view string_from_index(Idx index) {
@@ -118,57 +115,57 @@ namespace board {
 
             ImDrawList* draw_list {ImGui::GetWindowDrawList()};
 
-            const float UNIT {canvas_size.x < canvas_size.y ? (canvas_p1.x - canvas_p0.x) / 10.0f : (canvas_p1.y - canvas_p0.y) / 10.0f};
-            const ImVec2 OFFSET {ImVec2(canvas_p0.x, canvas_p0.y)};
+            const float unit {canvas_size.x < canvas_size.y ? (canvas_p1.x - canvas_p0.x) / 10.0f : (canvas_p1.y - canvas_p0.y) / 10.0f};
+            const ImVec2 offset {ImVec2(canvas_p0.x, canvas_p0.y)};
 
-            const ImColor COLOR {ImColor(200, 200, 200)};
-            const float THICKNESS {2.0f};
+            static constexpr ImColor COLOR {ImColor(200, 200, 200)};
+            static constexpr float THICKNESS {2.0f};
 
-            m_board_unit = UNIT;
-            m_board_offset = OFFSET;
+            m_board_unit = unit;
+            m_board_offset = offset;
 
             draw_list->AddRectFilled(canvas_p0, canvas_p1, ImColor(45, 45, 45));
 
-            draw_list->AddRect(ImVec2(2.0f * UNIT + OFFSET.x, 8.0f * UNIT + OFFSET.y), ImVec2(8.0f * UNIT + OFFSET.x, 2.0f * UNIT + OFFSET.y), COLOR, 0.0f, 0, THICKNESS);
-            draw_list->AddRect(ImVec2(3.0f * UNIT + OFFSET.x, 7.0f * UNIT + OFFSET.y), ImVec2(7.0f * UNIT + OFFSET.x, 3.0f * UNIT + OFFSET.y), COLOR, 0.0f, 0, THICKNESS);
-            draw_list->AddRect(ImVec2(4.0f * UNIT + OFFSET.x, 6.0f * UNIT + OFFSET.y), ImVec2(6.0f * UNIT + OFFSET.x, 4.0f * UNIT + OFFSET.y), COLOR, 0.0f, 0, THICKNESS);
+            draw_list->AddRect(ImVec2(2.0f * unit + offset.x, 8.0f * unit + offset.y), ImVec2(8.0f * unit + offset.x, 2.0f * unit + offset.y), COLOR, 0.0f, 0, THICKNESS);
+            draw_list->AddRect(ImVec2(3.0f * unit + offset.x, 7.0f * unit + offset.y), ImVec2(7.0f * unit + offset.x, 3.0f * unit + offset.y), COLOR, 0.0f, 0, THICKNESS);
+            draw_list->AddRect(ImVec2(4.0f * unit + offset.x, 6.0f * unit + offset.y), ImVec2(6.0f * unit + offset.x, 4.0f * unit + offset.y), COLOR, 0.0f, 0, THICKNESS);
 
-            draw_list->AddLine(ImVec2(5.0f * UNIT + OFFSET.x, 2.0f * UNIT + OFFSET.y), ImVec2(5.0f * UNIT + OFFSET.x, 4.0f * UNIT + OFFSET.y), COLOR, THICKNESS);
-            draw_list->AddLine(ImVec2(6.0f * UNIT + OFFSET.x, 5.0f * UNIT + OFFSET.y), ImVec2(8.0f * UNIT + OFFSET.x, 5.0f * UNIT + OFFSET.y), COLOR, THICKNESS);
-            draw_list->AddLine(ImVec2(5.0f * UNIT + OFFSET.x, 6.0f * UNIT + OFFSET.y), ImVec2(5.0f * UNIT + OFFSET.x, 8.0f * UNIT + OFFSET.y), COLOR, THICKNESS);
-            draw_list->AddLine(ImVec2(2.0f * UNIT + OFFSET.x, 5.0f * UNIT + OFFSET.y), ImVec2(4.0f * UNIT + OFFSET.x, 5.0f * UNIT + OFFSET.y), COLOR, THICKNESS);
+            draw_list->AddLine(ImVec2(5.0f * unit + offset.x, 2.0f * unit + offset.y), ImVec2(5.0f * unit + offset.x, 4.0f * unit + offset.y), COLOR, THICKNESS);
+            draw_list->AddLine(ImVec2(6.0f * unit + offset.x, 5.0f * unit + offset.y), ImVec2(8.0f * unit + offset.x, 5.0f * unit + offset.y), COLOR, THICKNESS);
+            draw_list->AddLine(ImVec2(5.0f * unit + offset.x, 6.0f * unit + offset.y), ImVec2(5.0f * unit + offset.x, 8.0f * unit + offset.y), COLOR, THICKNESS);
+            draw_list->AddLine(ImVec2(2.0f * unit + offset.x, 5.0f * unit + offset.y), ImVec2(4.0f * unit + offset.x, 5.0f * unit + offset.y), COLOR, THICKNESS);
 
-            draw_list->AddText(ImVec2(2.0f * UNIT + OFFSET.x, 1.0f * UNIT + OFFSET.y), COLOR, "A");
-            draw_list->AddText(ImVec2(3.0f * UNIT + OFFSET.x, 1.0f * UNIT + OFFSET.y), COLOR, "B");
-            draw_list->AddText(ImVec2(4.0f * UNIT + OFFSET.x, 1.0f * UNIT + OFFSET.y), COLOR, "C");
-            draw_list->AddText(ImVec2(5.0f * UNIT + OFFSET.x, 1.0f * UNIT + OFFSET.y), COLOR, "D");
-            draw_list->AddText(ImVec2(6.0f * UNIT + OFFSET.x, 1.0f * UNIT + OFFSET.y), COLOR, "E");
-            draw_list->AddText(ImVec2(7.0f * UNIT + OFFSET.x, 1.0f * UNIT + OFFSET.y), COLOR, "F");
-            draw_list->AddText(ImVec2(8.0f * UNIT + OFFSET.x, 1.0f * UNIT + OFFSET.y), COLOR, "G");
+            draw_list->AddText(ImVec2(2.0f * unit + offset.x, 1.0f * unit + offset.y), COLOR, "A");
+            draw_list->AddText(ImVec2(3.0f * unit + offset.x, 1.0f * unit + offset.y), COLOR, "B");
+            draw_list->AddText(ImVec2(4.0f * unit + offset.x, 1.0f * unit + offset.y), COLOR, "C");
+            draw_list->AddText(ImVec2(5.0f * unit + offset.x, 1.0f * unit + offset.y), COLOR, "D");
+            draw_list->AddText(ImVec2(6.0f * unit + offset.x, 1.0f * unit + offset.y), COLOR, "E");
+            draw_list->AddText(ImVec2(7.0f * unit + offset.x, 1.0f * unit + offset.y), COLOR, "F");
+            draw_list->AddText(ImVec2(8.0f * unit + offset.x, 1.0f * unit + offset.y), COLOR, "G");
 
-            draw_list->AddText(ImVec2(2.0f * UNIT + OFFSET.x, 9.0f * UNIT + OFFSET.y), COLOR, "A");
-            draw_list->AddText(ImVec2(3.0f * UNIT + OFFSET.x, 9.0f * UNIT + OFFSET.y), COLOR, "B");
-            draw_list->AddText(ImVec2(4.0f * UNIT + OFFSET.x, 9.0f * UNIT + OFFSET.y), COLOR, "C");
-            draw_list->AddText(ImVec2(5.0f * UNIT + OFFSET.x, 9.0f * UNIT + OFFSET.y), COLOR, "D");
-            draw_list->AddText(ImVec2(6.0f * UNIT + OFFSET.x, 9.0f * UNIT + OFFSET.y), COLOR, "E");
-            draw_list->AddText(ImVec2(7.0f * UNIT + OFFSET.x, 9.0f * UNIT + OFFSET.y), COLOR, "F");
-            draw_list->AddText(ImVec2(8.0f * UNIT + OFFSET.x, 9.0f * UNIT + OFFSET.y), COLOR, "G");
+            draw_list->AddText(ImVec2(2.0f * unit + offset.x, 9.0f * unit + offset.y), COLOR, "A");
+            draw_list->AddText(ImVec2(3.0f * unit + offset.x, 9.0f * unit + offset.y), COLOR, "B");
+            draw_list->AddText(ImVec2(4.0f * unit + offset.x, 9.0f * unit + offset.y), COLOR, "C");
+            draw_list->AddText(ImVec2(5.0f * unit + offset.x, 9.0f * unit + offset.y), COLOR, "D");
+            draw_list->AddText(ImVec2(6.0f * unit + offset.x, 9.0f * unit + offset.y), COLOR, "E");
+            draw_list->AddText(ImVec2(7.0f * unit + offset.x, 9.0f * unit + offset.y), COLOR, "F");
+            draw_list->AddText(ImVec2(8.0f * unit + offset.x, 9.0f * unit + offset.y), COLOR, "G");
 
-            draw_list->AddText(ImVec2(9.0f * UNIT + OFFSET.x, 2.0f * UNIT + OFFSET.y), COLOR, "7");
-            draw_list->AddText(ImVec2(9.0f * UNIT + OFFSET.x, 3.0f * UNIT + OFFSET.y), COLOR, "6");
-            draw_list->AddText(ImVec2(9.0f * UNIT + OFFSET.x, 4.0f * UNIT + OFFSET.y), COLOR, "5");
-            draw_list->AddText(ImVec2(9.0f * UNIT + OFFSET.x, 5.0f * UNIT + OFFSET.y), COLOR, "4");
-            draw_list->AddText(ImVec2(9.0f * UNIT + OFFSET.x, 6.0f * UNIT + OFFSET.y), COLOR, "3");
-            draw_list->AddText(ImVec2(9.0f * UNIT + OFFSET.x, 7.0f * UNIT + OFFSET.y), COLOR, "2");
-            draw_list->AddText(ImVec2(9.0f * UNIT + OFFSET.x, 8.0f * UNIT + OFFSET.y), COLOR, "1");
+            draw_list->AddText(ImVec2(9.0f * unit + offset.x, 2.0f * unit + offset.y), COLOR, "7");
+            draw_list->AddText(ImVec2(9.0f * unit + offset.x, 3.0f * unit + offset.y), COLOR, "6");
+            draw_list->AddText(ImVec2(9.0f * unit + offset.x, 4.0f * unit + offset.y), COLOR, "5");
+            draw_list->AddText(ImVec2(9.0f * unit + offset.x, 5.0f * unit + offset.y), COLOR, "4");
+            draw_list->AddText(ImVec2(9.0f * unit + offset.x, 6.0f * unit + offset.y), COLOR, "3");
+            draw_list->AddText(ImVec2(9.0f * unit + offset.x, 7.0f * unit + offset.y), COLOR, "2");
+            draw_list->AddText(ImVec2(9.0f * unit + offset.x, 8.0f * unit + offset.y), COLOR, "1");
 
-            draw_list->AddText(ImVec2(1.0f * UNIT + OFFSET.x, 2.0f * UNIT + OFFSET.y), COLOR, "7");
-            draw_list->AddText(ImVec2(1.0f * UNIT + OFFSET.x, 3.0f * UNIT + OFFSET.y), COLOR, "6");
-            draw_list->AddText(ImVec2(1.0f * UNIT + OFFSET.x, 4.0f * UNIT + OFFSET.y), COLOR, "5");
-            draw_list->AddText(ImVec2(1.0f * UNIT + OFFSET.x, 5.0f * UNIT + OFFSET.y), COLOR, "4");
-            draw_list->AddText(ImVec2(1.0f * UNIT + OFFSET.x, 6.0f * UNIT + OFFSET.y), COLOR, "3");
-            draw_list->AddText(ImVec2(1.0f * UNIT + OFFSET.x, 7.0f * UNIT + OFFSET.y), COLOR, "2");
-            draw_list->AddText(ImVec2(1.0f * UNIT + OFFSET.x, 8.0f * UNIT + OFFSET.y), COLOR, "1");
+            draw_list->AddText(ImVec2(1.0f * unit + offset.x, 2.0f * unit + offset.y), COLOR, "7");
+            draw_list->AddText(ImVec2(1.0f * unit + offset.x, 3.0f * unit + offset.y), COLOR, "6");
+            draw_list->AddText(ImVec2(1.0f * unit + offset.x, 4.0f * unit + offset.y), COLOR, "5");
+            draw_list->AddText(ImVec2(1.0f * unit + offset.x, 5.0f * unit + offset.y), COLOR, "4");
+            draw_list->AddText(ImVec2(1.0f * unit + offset.x, 6.0f * unit + offset.y), COLOR, "3");
+            draw_list->AddText(ImVec2(1.0f * unit + offset.x, 7.0f * unit + offset.y), COLOR, "2");
+            draw_list->AddText(ImVec2(1.0f * unit + offset.x, 8.0f * unit + offset.y), COLOR, "1");
 
             for (Idx i {0}; i < 24; i++) {
                 switch (m_board[i]) {
@@ -197,24 +194,24 @@ namespace board {
                 }
             }
 
-            const float WIDTH {m_board_unit < 55.0f ? 2.0f : 3.0f};
+            const float width {m_board_unit < 55.0f ? 2.0f : 3.0f};
 
-            if (m_user_selected_index != NULL_INDEX) {
+            if (m_selected_index != NULL_INDEX) {
                 const ImVec2 position {
-                    static_cast<float>(NODE_POSITIONS[m_user_selected_index][0]) * m_board_unit + m_board_offset.x,
-                    static_cast<float>(NODE_POSITIONS[m_user_selected_index][1]) * m_board_unit + m_board_offset.y
+                    static_cast<float>(NODE_POSITIONS[m_selected_index][0]) * m_board_unit + m_board_offset.x,
+                    static_cast<float>(NODE_POSITIONS[m_selected_index][1]) * m_board_unit + m_board_offset.y
                 };
 
-                draw_list->AddCircle(position, m_board_unit / NODE_RADIUS + 1.0f, ImColor(240, 30, 30, 255), 0, WIDTH);
+                draw_list->AddCircle(position, m_board_unit / NODE_RADIUS + 1.0f, ImColor(240, 30, 30, 255), 0, width);
             }
 
-            if (m_user_take_action_index != NULL_INDEX) {
+            if (m_take_action_index != NULL_INDEX) {
                 const ImVec2 position {
-                    static_cast<float>(NODE_POSITIONS[m_user_take_action_index][0]) * m_board_unit + m_board_offset.x,
-                    static_cast<float>(NODE_POSITIONS[m_user_take_action_index][1]) * m_board_unit + m_board_offset.y
+                    static_cast<float>(NODE_POSITIONS[m_take_action_index][0]) * m_board_unit + m_board_offset.x,
+                    static_cast<float>(NODE_POSITIONS[m_take_action_index][1]) * m_board_unit + m_board_offset.y
                 };
 
-                draw_list->AddCircle(position, m_board_unit / NODE_RADIUS + 1.0f, ImColor(30, 30, 240, 255), 0, WIDTH);
+                draw_list->AddCircle(position, m_board_unit / NODE_RADIUS + 1.0f, ImColor(30, 30, 240, 255), 0, width);
             }
 
             if (user_input) {
@@ -235,8 +232,8 @@ namespace board {
         m_plies_without_advancement = 0;
         m_positions.clear();
 
-        m_user_selected_index = NULL_INDEX;
-        m_user_take_action_index = NULL_INDEX;
+        m_selected_index = NULL_INDEX;
+        m_take_action_index = NULL_INDEX;
 
         m_legal_moves = generate_moves();
     }
@@ -265,8 +262,8 @@ namespace board {
             ImGui::Text("plies: %u", m_plies);
             ImGui::Text("plies_without_advancement: %u", m_plies_without_advancement);
             ImGui::Text("positions: %lu", m_positions.size());
-            ImGui::Text("user_selected_index: %d", m_user_selected_index);
-            ImGui::Text("user_take_action_index: %d", m_user_take_action_index);
+            ImGui::Text("user_selected_index: %d", m_selected_index);
+            ImGui::Text("user_take_action_index: %d", m_take_action_index);
             ImGui::Text("legal_moves: %lu", m_legal_moves.size());
         }
 
@@ -345,15 +342,15 @@ namespace board {
             }
 
             if (m_plies >= 18) {
-                if (m_user_take_action_index != NULL_INDEX) {
-                    try_move_take(m_user_selected_index, m_user_take_action_index, index);
+                if (m_take_action_index != NULL_INDEX) {
+                    try_move_take(m_selected_index, m_take_action_index, index);
                 } else {
-                    try_move(m_user_selected_index, index);
+                    try_move(m_selected_index, index);
                     select(index);
                 }
             } else {
-                if (m_user_take_action_index != NULL_INDEX) {
-                    try_place_take(m_user_take_action_index, index);
+                if (m_take_action_index != NULL_INDEX) {
+                    try_place_take(m_take_action_index, index);
                 } else {
                     try_place(index);
                 }
@@ -362,18 +359,18 @@ namespace board {
     }
 
     void MuhleBoard::select(Idx index) {
-        if (m_user_selected_index == NULL_INDEX) {
+        if (m_selected_index == NULL_INDEX) {
             if (m_board[index] == static_cast<Piece>(m_turn)) {
-                m_user_selected_index = index;
+                m_selected_index = index;
             }
         } else {
-            if (index == m_user_selected_index) {
-                if (m_user_take_action_index == NULL_INDEX) {
-                    m_user_selected_index = NULL_INDEX;
+            if (index == m_selected_index) {
+                if (m_take_action_index == NULL_INDEX) {
+                    m_selected_index = NULL_INDEX;
                 }
             } else if (m_board[index] == static_cast<Piece>(m_turn)) {
-                if (m_user_take_action_index == NULL_INDEX) {
-                    m_user_selected_index = index;
+                if (m_take_action_index == NULL_INDEX) {
+                    m_selected_index = index;
                 }
             }
         }
@@ -394,7 +391,7 @@ namespace board {
         });
 
         if (iter != m_legal_moves.end()) {
-            m_user_take_action_index = place_index;
+            m_take_action_index = place_index;
         }
     }
 
@@ -435,7 +432,7 @@ namespace board {
         });
 
         if (iter != m_legal_moves.end()) {
-            m_user_take_action_index = destination_index;
+            m_take_action_index = destination_index;
         }
     }
 
@@ -473,8 +470,8 @@ namespace board {
 
         m_positions.push_back({m_board, m_turn});
 
-        m_user_selected_index = NULL_INDEX;
-        m_user_take_action_index = NULL_INDEX;
+        m_selected_index = NULL_INDEX;
+        m_take_action_index = NULL_INDEX;
     }
 
     void MuhleBoard::check_winner_material() {
@@ -709,54 +706,30 @@ namespace board {
         assert(board[index] == piece);
 
         switch (index) {
-            case 0:
-                return IS_PC(1) && IS_PC(2) || IS_PC(9) && IS_PC(21);
-            case 1:
-                return IS_PC(0) && IS_PC(2) || IS_PC(4) && IS_PC(7);
-            case 2:
-                return IS_PC(0) && IS_PC(1) || IS_PC(14) && IS_PC(23);
-            case 3:
-                return IS_PC(4) && IS_PC(5) || IS_PC(10) && IS_PC(18);
-            case 4:
-                return IS_PC(3) && IS_PC(5) || IS_PC(1) && IS_PC(7);
-            case 5:
-                return IS_PC(3) && IS_PC(4) || IS_PC(13) && IS_PC(20);
-            case 6:
-                return IS_PC(7) && IS_PC(8) || IS_PC(11) && IS_PC(15);
-            case 7:
-                return IS_PC(6) && IS_PC(8) || IS_PC(1) && IS_PC(4);
-            case 8:
-                return IS_PC(6) && IS_PC(7) || IS_PC(12) && IS_PC(17);
-            case 9:
-                return IS_PC(0) && IS_PC(21) || IS_PC(10) && IS_PC(11);
-            case 10:
-                return IS_PC(9) && IS_PC(11) || IS_PC(3) && IS_PC(18);
-            case 11:
-                return IS_PC(9) && IS_PC(10) || IS_PC(6) && IS_PC(15);
-            case 12:
-                return IS_PC(13) && IS_PC(14) || IS_PC(8) && IS_PC(17);
-            case 13:
-                return IS_PC(12) && IS_PC(14) || IS_PC(5) && IS_PC(20);
-            case 14:
-                return IS_PC(12) && IS_PC(13) || IS_PC(2) && IS_PC(23);
-            case 15:
-                return IS_PC(16) && IS_PC(17) || IS_PC(6) && IS_PC(11);
-            case 16:
-                return IS_PC(15) && IS_PC(17) || IS_PC(19) && IS_PC(22);
-            case 17:
-                return IS_PC(15) && IS_PC(16) || IS_PC(8) && IS_PC(12);
-            case 18:
-                return IS_PC(19) && IS_PC(20) || IS_PC(3) && IS_PC(10);
-            case 19:
-                return IS_PC(18) && IS_PC(20) || IS_PC(16) && IS_PC(22);
-            case 20:
-                return IS_PC(18) && IS_PC(19) || IS_PC(5) && IS_PC(13);
-            case 21:
-                return IS_PC(22) && IS_PC(23) || IS_PC(0) && IS_PC(9);
-            case 22:
-                return IS_PC(21) && IS_PC(23) || IS_PC(16) && IS_PC(19);
-            case 23:
-                return IS_PC(21) && IS_PC(22) || IS_PC(2) && IS_PC(14);
+            case 0: return IS_PC(1) && IS_PC(2) || IS_PC(9) && IS_PC(21);
+            case 1: return IS_PC(0) && IS_PC(2) || IS_PC(4) && IS_PC(7);
+            case 2: return IS_PC(0) && IS_PC(1) || IS_PC(14) && IS_PC(23);
+            case 3: return IS_PC(4) && IS_PC(5) || IS_PC(10) && IS_PC(18);
+            case 4: return IS_PC(3) && IS_PC(5) || IS_PC(1) && IS_PC(7);
+            case 5: return IS_PC(3) && IS_PC(4) || IS_PC(13) && IS_PC(20);
+            case 6: return IS_PC(7) && IS_PC(8) || IS_PC(11) && IS_PC(15);
+            case 7: return IS_PC(6) && IS_PC(8) || IS_PC(1) && IS_PC(4);
+            case 8: return IS_PC(6) && IS_PC(7) || IS_PC(12) && IS_PC(17);
+            case 9: return IS_PC(0) && IS_PC(21) || IS_PC(10) && IS_PC(11);
+            case 10: return IS_PC(9) && IS_PC(11) || IS_PC(3) && IS_PC(18);
+            case 11: return IS_PC(9) && IS_PC(10) || IS_PC(6) && IS_PC(15);
+            case 12: return IS_PC(13) && IS_PC(14) || IS_PC(8) && IS_PC(17);
+            case 13: return IS_PC(12) && IS_PC(14) || IS_PC(5) && IS_PC(20);
+            case 14: return IS_PC(12) && IS_PC(13) || IS_PC(2) && IS_PC(23);
+            case 15: return IS_PC(16) && IS_PC(17) || IS_PC(6) && IS_PC(11);
+            case 16: return IS_PC(15) && IS_PC(17) || IS_PC(19) && IS_PC(22);
+            case 17: return IS_PC(15) && IS_PC(16) || IS_PC(8) && IS_PC(12);
+            case 18: return IS_PC(19) && IS_PC(20) || IS_PC(3) && IS_PC(10);
+            case 19: return IS_PC(18) && IS_PC(20) || IS_PC(16) && IS_PC(22);
+            case 20: return IS_PC(18) && IS_PC(19) || IS_PC(5) && IS_PC(13);
+            case 21: return IS_PC(22) && IS_PC(23) || IS_PC(0) && IS_PC(9);
+            case 22: return IS_PC(21) && IS_PC(23) || IS_PC(16) && IS_PC(19);
+            case 23: return IS_PC(21) && IS_PC(22) || IS_PC(2) && IS_PC(14);
         }
 
         return {};
