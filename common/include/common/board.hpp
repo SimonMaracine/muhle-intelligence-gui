@@ -74,12 +74,13 @@ namespace board {
         }
     };
 
-    using MoveCallback = std::function<void(const Move&, Player)>;
-
     class MuhleBoard {
     public:
         MuhleBoard() = default;
-        explicit MuhleBoard(const MoveCallback& move_callback);
+        explicit MuhleBoard(std::function<void(const Move&)>&& move_callback);
+
+        Player get_turn() const { return m_turn; }
+        GameOver get_game_over() const { return m_game_over; }
 
         void update(bool user_input = true);
         void reset(std::string_view position_string = "");
@@ -89,9 +90,6 @@ namespace board {
         void place_take(Idx place_index, Idx take_index);
         void move(Idx source_index, Idx destination_index);
         void move_take(Idx source_index, Idx destination_index, Idx take_index);
-
-        Player get_turn() const { return m_turn; }
-        GameOver get_game_over() const { return m_game_over; }
     private:
         void update_user_input();
         void select(Idx index);
@@ -104,6 +102,11 @@ namespace board {
         void check_winner_blocking();
         void check_fifty_move_rule();
         void check_threefold_repetition(const Position& position);
+
+        static bool point_in_circle(ImVec2 point, ImVec2 circle, float radius);
+        Idx get_index(ImVec2 position) const;
+
+        // Move generation
         std::vector<Move> generate_moves() const;
         static void generate_moves_phase1(Board& board, std::vector<Move>& moves, Player player);
         static void generate_moves_phase2(Board& board, std::vector<Move>& moves, Player player);
@@ -121,8 +124,6 @@ namespace board {
         static Move create_move_take(Idx source_index, Idx destination_index, Idx take_index);
         static unsigned int count_pieces(const Board& board, Player player);
         static Player opponent(Player player);
-        static bool point_in_circle(ImVec2 point, ImVec2 circle, float radius);
-        Idx get_index(ImVec2 position) const;
 
         // Game data
         Board m_board {};
@@ -135,11 +136,10 @@ namespace board {
         // GUI data
         float m_board_unit {};
         ImVec2 m_board_offset {};
-        Idx m_user_stored_index1 {NULL_INDEX};
-        Idx m_user_stored_index2 {NULL_INDEX};
-        bool m_user_must_take_piece {false};
+        Idx m_user_selected_index {NULL_INDEX};
+        Idx m_user_take_action_index {NULL_INDEX};
         std::vector<Move> m_legal_moves;
-        MoveCallback m_move_callback {[](const Move&, Player) {}};
+        std::function<void(const Move&)> m_move_callback;
     };
 
     Move move_from_string(std::string_view string);

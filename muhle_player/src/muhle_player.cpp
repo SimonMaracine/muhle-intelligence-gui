@@ -13,19 +13,19 @@ void MuhlePlayer::start() {
     io.ConfigWindowsMoveFromTitleBarOnly = true;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    m_muhle_board = board::MuhleBoard([this](const board::Move& move, board::Player turn) {
+    m_muhle_board = board::MuhleBoard([this](const board::Move& move) {
         if (!m_muhle_process.active()) {
             return;
         }
 
         int player {};
 
-        switch (turn) {
+        switch (m_muhle_board.get_turn()) {
             case board::Player::White:
-                player = m_white;
+                player = m_black;
                 break;
             case board::Player::Black:
-                player = m_black;
+                player = m_white;
                 break;
         }
 
