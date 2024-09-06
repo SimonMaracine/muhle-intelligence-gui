@@ -122,16 +122,16 @@ void MuhlePlayer::update() {
 
                 switch (move.type) {
                     case board::MoveType::Place:
-                        m_muhle_board.place(move.place.place_index);
+                        m_muhle_board.place_piece(move.place.place_index);
                         break;
                     case board::MoveType::PlaceTake:
-                        m_muhle_board.place_take(move.place_take.place_index, move.place_take.take_index);
+                        m_muhle_board.place_take_piece(move.place_take.place_index, move.place_take.take_index);
                         break;
                     case board::MoveType::Move:
-                        m_muhle_board.move(move.move.source_index, move.move.destination_index);
+                        m_muhle_board.move_piece(move.move.source_index, move.move.destination_index);
                         break;
                     case board::MoveType::MoveTake:
-                        m_muhle_board.move_take(move.move_take.source_index, move.move_take.destination_index, move.move_take.take_index);
+                        m_muhle_board.move_take_piece(move.move_take.source_index, move.move_take.destination_index, move.move_take.take_index);
                         break;
                 }
 
