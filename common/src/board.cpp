@@ -36,7 +36,7 @@ namespace board {
         { 8, 8 }
     };
 
-    static int index_from_string(std::string_view string) {
+    static int index_from_string(const std::string& string) {
         if (string == "a7") return 0;
         else if (string == "d7") return 1;
         else if (string == "g7") return 2;
@@ -66,7 +66,7 @@ namespace board {
         return {};
     }
 
-    static std::string_view string_from_index(int index) {
+    static const char* string_from_index(int index) {
         switch (index) {
             case 0: return "a7";
             case 1: return "d7";
@@ -244,7 +244,7 @@ namespace board {
         ImGui::PopStyleVar(2);
     }
 
-    void MuhleBoard::reset(std::string_view position_string) {
+    void MuhleBoard::reset(const std::string& position_string) {
         m_board = {};
         m_turn = Player::White;
         m_game_over = GameOver::None;
@@ -1099,7 +1099,7 @@ namespace board {
         }
     }
 
-    Move move_from_string(std::string_view string) {
+    Move move_from_string(const std::string& string) {
         Move result {};
 
         switch (string[0]) {
@@ -1144,7 +1144,7 @@ namespace board {
         return {};
     }
 
-    std::string move_to_string(const Move& move) {
+    std::string string_from_move(const Move& move) {
         std::string result;
 
         switch (move.type) {

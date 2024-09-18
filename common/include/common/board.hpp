@@ -2,7 +2,7 @@
 
 #include <array>
 #include <vector>
-#include <string_view>
+#include <string>
 #include <functional>
 
 #include <gui_base/gui_base.hpp>
@@ -99,7 +99,7 @@ namespace board {
         GameOver get_game_over() const { return m_game_over; }
 
         void update(bool user_input = true);
-        void reset(std::string_view position_string = "");
+        void reset(const std::string& position_string = "");
         void debug() const;
 
         void place_piece(int place_index);
@@ -178,6 +178,6 @@ namespace board {
         std::function<void(const Move&)> m_move_callback;
     };
 
-    Move move_from_string(std::string_view string);
-    std::string move_to_string(const Move& move);
+    Move move_from_string(const std::string& string);
+    std::string string_from_move(const Move& move);
 }

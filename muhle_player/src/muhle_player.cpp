@@ -32,7 +32,7 @@ void MuhlePlayer::start() {
         switch (player) {
             case PlayerHuman:
                 try {
-                    m_muhle_process.write("move " + board::move_to_string(move) + '\n');
+                    m_muhle_process.write("move " + board::string_from_move(move) + '\n');
                 } catch (const subprocess::Error& e) {
                     terminate_process(e.what());
                 }
