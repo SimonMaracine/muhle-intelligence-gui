@@ -1,7 +1,6 @@
 #include "muhle_player.hpp"
 
 #include <iostream>
-#include <cstring>
 #include <filesystem>
 #include <chrono>
 
@@ -20,7 +19,7 @@ void MuhlePlayer::start() {
 
         int player {};
 
-        switch (m_muhle_board.get_turn()) {
+        switch (m_muhle_board.get_player()) {
             case board::Player::White:
                 player = m_black;
                 break;
@@ -32,7 +31,7 @@ void MuhlePlayer::start() {
         switch (player) {
             case PlayerHuman:
                 try {
-                    m_muhle_process.write("move " + board::string_from_move(move) + '\n');
+                    m_muhle_process.write("move " + board::move_to_string(move) + '\n');
                 } catch (const subprocess::Error& e) {
                     terminate_process(e.what());
                 }
@@ -64,7 +63,7 @@ void MuhlePlayer::update() {
         case State::NextTurn: {
             int player {};
 
-            switch (m_muhle_board.get_turn()) {
+            switch (m_muhle_board.get_player()) {
                 case board::Player::White:
                     player = m_white;
                     break;
@@ -197,7 +196,7 @@ void MuhlePlayer::load_engine(const std::string& file_path) {
         return;
     }
 
-    m_engine_filename = std::filesystem::path(file_path).filename();
+    m_engine_name = std::filesystem::path(file_path).filename();
 }
 
 void MuhlePlayer::unload_engine() {
@@ -225,16 +224,13 @@ void MuhlePlayer::main_menu_bar() {
             if (ImGui::MenuItem("Load Engine")) {
                 load_engine();
             }
-            if (ImGui::MenuItem("Reset", nullptr, nullptr, m_state != State::ComputerThinking)) {
-                reset();
+            if (ImGui::MenuItem("Reset Position", nullptr, nullptr, m_state != State::ComputerThinking)) {
+                reset_position();
             }
-            if (ImGui::BeginMenu("Import Position")) {
-                import_position();
+            if (ImGui::BeginMenu("Set Position")) {
+                set_position();
 
                 ImGui::EndMenu();
-            }
-            if (ImGui::MenuItem("Export Position")) {
-
             }
             if (ImGui::MenuItem("Quit")) {
                 quit();
@@ -290,15 +286,7 @@ void MuhlePlayer::load_engine_dialog() {
     }
 }
 
-void MuhlePlayer::import_position() {
-    char buffer[32] {};
-
-    if (ImGui::InputText("string", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
-        // TODO
-    }
-}
-
-void MuhlePlayer::reset() {
+void MuhlePlayer::reset_position() {
     if (m_muhle_process.active()) {
         try {
             m_muhle_process.write("newgame\n");
@@ -311,17 +299,20 @@ void MuhlePlayer::reset() {
     m_state = State::NextTurn;
 }
 
+void MuhlePlayer::set_position() {
+    char buffer[32] {};
+
+    if (ImGui::InputText("string", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
+        // TODO
+    }
+}
+
 void MuhlePlayer::about() {
     ImGui::Text("%s", u8"Mühle Player - for testing and developing Mühle Intelligence");
 }
 
 void MuhlePlayer::notation() {
-    ImGui::Text("A player's turn is described as:");
-    ImGui::TextColored(ImVec4(0.8f, 0.3f, 0.4f, 1.0f), "player move_type node[-node] [move_type node]");
-    ImGui::Text("1. Player: W for white, B for black");
-    ImGui::Text("2. Main move: P for place, M for move, first and second phase respectively");
-    ImGui::Text("3. Node: one node - place location, two nodes - move source and destination");
-    ImGui::Text("4. Take move: T preceeded by a node - which piece was taken");
+
 }
 
 void MuhlePlayer::board() {
@@ -331,18 +322,15 @@ void MuhlePlayer::board() {
 
 void MuhlePlayer::controls() {
     if (ImGui::Begin("Controls")) {
-        ImGui::Text("Engine: %s", m_engine_filename.c_str());
+        ImGui::Text("Engine: %s", m_engine_name.c_str());
         ImGui::Separator();
 
         ImGui::Spacing();
 
-        if (ImGui::Button("Stop Engine")) {
-
-        }
-
         if (m_state == State::ComputerThinking) {
-            ImGui::SameLine();
             ImGui::Text("Thinking...");
+        } else {
+            ImGui::Text("Passive");
         }
 
         ImGui::Spacing();
@@ -399,20 +387,4 @@ void MuhlePlayer::terminate_process(const char* message) {
     } catch (const subprocess::Error& e) {
         std::cerr << e.what() << '\n';
     }
-}
-
-std::vector<std::string> MuhlePlayer::parse_message(const std::string& message) {
-    std::vector<std::string> tokens;
-
-    std::string mutable_buffer {message};
-
-    char* token {std::strtok(mutable_buffer.data(), " \t")};
-
-    while (token != nullptr) {
-        tokens.emplace_back(token);
-
-        token = std::strtok(nullptr, " \t");
-    }
-
-    return tokens;
 }

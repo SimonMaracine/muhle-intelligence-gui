@@ -4,8 +4,9 @@
 #include <vector>
 
 #include <gui_base/gui_base.hpp>
-#include <common/board.hpp>
-#include <common/subprocess.hpp>
+
+#include "board.hpp"
+#include "engine.hpp"
 
 class MuhlePlayer : public gui_base::GuiApplication {
 public:
@@ -22,15 +23,14 @@ private:
     void main_menu_bar();
     void load_engine();
     void load_engine_dialog();
-    void import_position();
-    void reset();
+    void reset_position();
+    void set_position();
     void about();
     void notation();
     void board();
     void controls();
 
     void terminate_process(const char* message);
-    std::vector<std::string> parse_message(const std::string& message);
 
     enum PlayerType {
         PlayerHuman,
@@ -38,9 +38,9 @@ private:
     };
 
     board::MuhleBoard m_muhle_board;
-    subprocess::Subprocess m_muhle_process;
+    engine::Engine m_engine;
 
-    std::string m_engine_filename {""};
+    std::string m_engine_name {""};
 
     int m_white {PlayerHuman};
     int m_black {PlayerComputer};

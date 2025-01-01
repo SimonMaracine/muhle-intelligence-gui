@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <functional>
+#include <stdexcept>
 
 #include <gui_base/gui_base.hpp>
 
@@ -15,15 +16,15 @@ namespace board {
 
     enum class MoveType {
         Place,
-        PlaceTake,
+        PlaceCapture,
         Move,
-        MoveTake
+        MoveCapture
     };
 
-    enum class Piece {
-        None,
-        White,
-        Black
+    enum class Node {
+        None = 0,
+        White = 1,
+        Black = 2
     };
 
     enum class GameOver {
@@ -41,8 +42,8 @@ namespace board {
 
             struct {
                 int place_index;
-                int take_index;
-            } place_take;
+                int capture_index;
+            } place_capture;
 
             struct {
                 int source_index;
@@ -52,34 +53,39 @@ namespace board {
             struct {
                 int source_index;
                 int destination_index;
-                int take_index;
-            } move_take;
+                int capture_index;
+            } move_capture;
         };
 
         MoveType type {};
+
+        static Move create_place(int place_index);
+        static Move create_place_capture(int place_index, int capture_index);
+        static Move create_move(int source_index, int destination_index);
+        static Move create_move_capture(int source_index, int destination_index, int capture_index);
     };
 
-    using Board = std::array<Piece, 24>;
+    using Board = std::array<Node, 24>;
 
     struct Position {
         Board board {};
-        Player turn {};
+        Player player {};
 
         bool operator==(const Position& other) const {
-            return board == other.board && turn == other.turn;
+            return board == other.board && player == other.player;
         }
     };
 
     class PieceObj {
     public:
         PieceObj() = default;
-        PieceObj(Player type)
+        explicit PieceObj(Player type)
             : m_type(type) {}
 
         Player get_type() const { return m_type; }
 
         void update();
-        void render(ImDrawList* draw_list, float m_board_unit);
+        void render(ImDrawList* draw_list, float board_unit);
         void move(ImVec2 target);
 
         int node_index {-1};
@@ -95,38 +101,43 @@ namespace board {
         MuhleBoard() = default;
         explicit MuhleBoard(std::function<void(const Move&)>&& move_callback);
 
-        Player get_turn() const { return m_turn; }
+        Player get_player() const { return m_player; }
         GameOver get_game_over() const { return m_game_over; }
 
-        void update(bool user_input = true);
-        void reset(const std::string& position_string = "");
+        void update(bool user_input = false);
+        void reset(const std::string& position_string = "w:w:b:1");
         void debug() const;
 
-        void place_piece(int place_index);
-        void place_take_piece(int place_index, int take_index);
-        void move_piece(int source_index, int destination_index);
-        void move_take_piece(int source_index, int destination_index, int take_index);
+        void play_move(const Move& move);
+
+        // void place_piece(int place_index);
+        // void place_capture_piece(int place_index, int capture_index);
+        // void move_piece(int source_index, int destination_index);
+        // void move_capture_piece(int source_index, int destination_index, int capture_index);
     private:
         void update_user_input();
         void select(int index);
 
-        void user_place(int place_index);
-        void user_place_take_just_place(int place_index);
-        void user_place_take(int place_index, int take_index);
-        void user_move(int source_index, int destination_index);
-        void user_move_take_just_move(int source_index, int destination_index);
-        void user_move_take(int source_index, int destination_index, int take_index);
+        // void user_place(int place_index);
+        // void user_place_take_just_place(int place_index);
+        // void user_place_take(int place_index, int take_index);
+        // void user_move(int source_index, int destination_index);
+        // void user_move_take_just_move(int source_index, int destination_index);
+        // void user_move_take(int source_index, int destination_index, int take_index);
 
+        // void try_place(int place_index);
+        // void try_place_take(int place_index, int take_index);
+        // void try_move(int source_index, int destination_index);
+        // void try_move_take(int source_index, int destination_index, int take_index);
         void try_place(int place_index);
-        void try_place_take(int place_index, int take_index);
         void try_move(int source_index, int destination_index);
-        void try_move_take(int source_index, int destination_index, int take_index);
+        void try_capture(int capture_index);
 
         // These just change the state
-        void place(int place_index);
-        void place_take(int place_index, int take_index);
-        void move(int source_index, int destination_index);
-        void move_take(int source_index, int destination_index, int take_index);
+        void play_place_move(int place_index);
+        void play_place_capture_move(int place_index, int capture_index);
+        void play_move_move(int source_index, int destination_index);
+        void play_move_capture_move(int source_index, int destination_index, int capture_index);
 
         void finish_turn(bool advancement = true);
         void check_winner_material();
@@ -153,31 +164,35 @@ namespace board {
         static bool is_mill(const Board& board, Player player, int index);
         static bool all_pieces_in_mills(const Board& board, Player player);
         static std::vector<int> neighbor_free_positions(const Board& board, int index);
-        static Move create_place(int place_index);
-        static Move create_place_take(int place_index, int take_index);
-        static Move create_move(int source_index, int destination_index);
-        static Move create_move_take(int source_index, int destination_index, int take_index);
         static unsigned int count_pieces(const Board& board, Player player);
         static Player opponent(Player player);
 
         // Game data
         Board m_board {};
-        Player m_turn {Player::White};
+        Player m_player {Player::White};
         GameOver m_game_over {GameOver::None};
         unsigned int m_plies {};
-        unsigned int m_plies_without_advancement {};
+        unsigned int m_plies_no_advancement {};
         std::vector<Position> m_positions;
 
         // GUI data
+        bool m_capture_piece {false};
+        int m_select_index {-1};
         float m_board_unit {};
         ImVec2 m_board_offset;
-        int m_selected_index {-1};
-        int m_take_action_index {-1};
         std::array<PieceObj, 18> m_pieces;
         std::vector<Move> m_legal_moves;
+        std::vector<Move> m_candidate_moves;
         std::function<void(const Move&)> m_move_callback;
     };
 
+    struct BoardError : std::runtime_error {
+        explicit BoardError(const char* message)
+            : std::runtime_error(message) {}
+        explicit BoardError(const std::string& message)
+            : std::runtime_error(message) {}
+    };
+
     Move move_from_string(const std::string& string);
-    std::string string_from_move(const Move& move);
+    std::string move_to_string(const Move& move);
 }
