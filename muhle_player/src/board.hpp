@@ -5,6 +5,7 @@
 #include <string>
 #include <functional>
 #include <stdexcept>
+#include <optional>
 
 #include <gui_base/gui_base.hpp>
 
@@ -59,20 +60,23 @@ namespace board {
 
         MoveType type {};
 
+        bool operator==(const Move& other) const;
+
         static Move create_place(int place_index);
         static Move create_place_capture(int place_index, int capture_index);
         static Move create_move(int source_index, int destination_index);
         static Move create_move_capture(int source_index, int destination_index, int capture_index);
     };
 
-    using Board = std::array<Node, 24>;
+    using Board_ = std::array<Node, 24>;
 
     struct Position {
-        Board board {};
+        Board_ board {};
         Player player {};
+        unsigned int plies {};
 
         bool operator==(const Position& other) const {
-            return board == other.board && player == other.player;
+            return board == other.board && player == other.player && plies == other.plies;
         }
     };
 
@@ -96,18 +100,19 @@ namespace board {
         bool m_moving {false};
     };
 
-    class MuhleBoard {
+    class Board {
     public:
-        MuhleBoard() = default;
-        explicit MuhleBoard(std::function<void(const Move&)>&& move_callback);
+        Board() = default;
+        explicit Board(std::function<void(const Move&)>&& move_callback);
 
         Player get_player() const { return m_player; }
         GameOver get_game_over() const { return m_game_over; }
 
         void update(bool user_input = false);
-        void reset(const std::string& position_string = "w:w:b:1");
+        void reset(const std::optional<Position>& position);
         void debug() const;
 
+        Position get_position() const;
         void play_move(const Move& move);
 
         // void place_piece(int place_index);
@@ -154,25 +159,25 @@ namespace board {
 
         // Move generation
         std::vector<Move> generate_moves() const;
-        static void generate_moves_phase1(Board& board, std::vector<Move>& moves, Player player);
-        static void generate_moves_phase2(Board& board, std::vector<Move>& moves, Player player);
-        static void generate_moves_phase3(Board& board, std::vector<Move>& moves, Player player);
-        static void make_place_move(Board& board, Player player, int place_index);
-        static void unmake_place_move(Board& board, int place_index);
-        static void make_move_move(Board& board, int source_index, int destination_index);
-        static void unmake_move_move(Board& board, int source_index, int destination_index);
-        static bool is_mill(const Board& board, Player player, int index);
-        static bool all_pieces_in_mills(const Board& board, Player player);
-        static std::vector<int> neighbor_free_positions(const Board& board, int index);
-        static unsigned int count_pieces(const Board& board, Player player);
+        static void generate_moves_phase1(Board_& board, std::vector<Move>& moves, Player player);
+        static void generate_moves_phase2(Board_& board, std::vector<Move>& moves, Player player);
+        static void generate_moves_phase3(Board_& board, std::vector<Move>& moves, Player player);
+        static void make_place_move(Board_& board, Player player, int place_index);
+        static void unmake_place_move(Board_& board, int place_index);
+        static void make_move_move(Board_& board, int source_index, int destination_index);
+        static void unmake_move_move(Board_& board, int source_index, int destination_index);
+        static bool is_mill(const Board_& board, Player player, int index);
+        static bool all_pieces_in_mills(const Board_& board, Player player);
+        static std::vector<int> neighbor_free_positions(const Board_& board, int index);
+        static unsigned int count_pieces(const Board_& board, Player player);
         static Player opponent(Player player);
 
         // Game data
-        Board m_board {};
+        Board_ m_board {};
         Player m_player {Player::White};
-        GameOver m_game_over {GameOver::None};
         unsigned int m_plies {};
         unsigned int m_plies_no_advancement {};
+        GameOver m_game_over {GameOver::None};
         std::vector<Position> m_positions;
 
         // GUI data
@@ -195,4 +200,6 @@ namespace board {
 
     Move move_from_string(const std::string& string);
     std::string move_to_string(const Move& move);
+    Position position_from_string(const std::string& string);
+    std::string position_to_string(const Position& position);
 }

@@ -30,25 +30,27 @@ private:
     void board();
     void controls();
 
-    void terminate_process(const char* message);
+    int get_player_type(board::Player player) const;
 
     enum PlayerType {
         PlayerHuman,
         PlayerComputer
     };
 
-    board::MuhleBoard m_muhle_board;
+    board::Board m_board;
     engine::Engine m_engine;
-
     std::string m_engine_name {""};
 
     int m_white {PlayerHuman};
     int m_black {PlayerComputer};
 
     enum class State {
+        NotStarted,
         NextTurn,
         HumanThinking,
         ComputerBegin,
         ComputerThinking
-    } m_state {State::NextTurn};
+    } m_state {State::NotStarted};
+
+    std::vector<std::string> m_moves;
 };

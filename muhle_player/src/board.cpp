@@ -114,6 +114,35 @@ namespace board {
         return tokens;
     }
 
+    bool Move::operator==(const Move& other) const {
+        if (type != other.type) {
+            return false;
+        }
+
+        switch (type) {
+            case MoveType::Place:
+                return place.place_index == other.place.place_index;
+            case MoveType::PlaceCapture:
+                return (
+                    place_capture.place_index == other.place_capture.place_index &&
+                    place_capture.capture_index == other.place_capture.capture_index
+                );
+            case MoveType::Move:
+                return (
+                    move.source_index == other.move.source_index &&
+                    move.destination_index == other.move.destination_index
+                );
+            case MoveType::MoveCapture:
+                return (
+                    move_capture.source_index == other.move_capture.source_index &&
+                    move_capture.destination_index == other.move_capture.destination_index &&
+                    move_capture.capture_index == other.move_capture.capture_index
+                );
+        }
+
+        return {};
+    }
+
     Move Move::create_place(int place_index) {
         Move move;
         move.type = MoveType::Place;
@@ -196,14 +225,14 @@ namespace board {
         m_moving = true;
     }
 
-    MuhleBoard::MuhleBoard(std::function<void(const Move&)>&& move_callback)
+    Board::Board(std::function<void(const Move&)>&& move_callback)
         : m_move_callback(std::move(move_callback)) {
         m_legal_moves = generate_moves();
 
         initialize_pieces();
     }
 
-    void MuhleBoard::update(bool user_input) {
+    void Board::update(bool user_input) {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(350.0f, 350.0f));
 
@@ -296,7 +325,7 @@ namespace board {
         ImGui::PopStyleVar(2);
     }
 
-    void MuhleBoard::reset(const std::string& position_string) {
+    void Board::reset(const std::optional<Position>& position) {
         m_board = {};
         m_player = Player::White;
         m_game_over = GameOver::None;
@@ -312,7 +341,7 @@ namespace board {
         initialize_pieces();
     }
 
-    void MuhleBoard::debug() const {
+    void Board::debug() const {
         if (ImGui::Begin("Board Internal")) {
             const char* game_over_string {};
 
@@ -344,7 +373,11 @@ namespace board {
         ImGui::End();
     }
 
-    void MuhleBoard::play_move(const Move& move) {
+    Position Board::get_position() const {
+        return { m_board, m_player, m_plies };
+    }
+
+    void Board::play_move(const Move& move) {
         const auto iter {std::find(m_legal_moves.cbegin(), m_legal_moves.cend(), move)};
 
         if (iter == m_legal_moves.cend()) {
@@ -387,7 +420,7 @@ namespace board {
         }
     }
 
-    // void MuhleBoard::place_piece(int place_index) {
+    // void Board::place_piece(int place_index) {
     //     const auto iter {std::find_if(m_legal_moves.cbegin(), m_legal_moves.cend(), [=](const Move& move) {
     //         return move.type == MoveType::Place && move.place.place_index == place_index;
     //     })};
@@ -402,7 +435,7 @@ namespace board {
     //     place(place_index);
     // }
 
-    // void MuhleBoard::place_capture_piece(int place_index, int take_index) {
+    // void Board::place_capture_piece(int place_index, int take_index) {
     //     const auto iter {std::find_if(m_legal_moves.cbegin(), m_legal_moves.cend(), [=](const Move& move) {
     //         return (
     //             move.type == MoveType::PlaceCapture &&
@@ -423,7 +456,7 @@ namespace board {
     //     m_pieces[piece_on_node(take_index)].node_index = -1;
     // }
 
-    // void MuhleBoard::move_piece(int source_index, int destination_index) {
+    // void Board::move_piece(int source_index, int destination_index) {
     //     const auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
     //         return (
     //             move.type == MoveType::Move &&
@@ -440,7 +473,7 @@ namespace board {
     //     m_pieces[piece_on_node(source_index)].node_index = destination_index;
     // }
 
-    // void MuhleBoard::move_take_piece(int source_index, int destination_index, int take_index) {
+    // void Board::move_take_piece(int source_index, int destination_index, int take_index) {
     //     const auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
     //         return (
     //             move.type == MoveType::MoveTake &&
@@ -460,7 +493,7 @@ namespace board {
     //     m_pieces[piece_on_node(take_index)].node_index = -1;
     // }
 
-    void MuhleBoard::update_user_input() {
+    void Board::update_user_input() {
         if (!ImGui::IsWindowFocused()) {
             return;
         }
@@ -493,7 +526,7 @@ namespace board {
         }
     }
 
-    void MuhleBoard::select(int index) {
+    void Board::select(int index) {
         if (m_select_index == -1) {
             if (m_board[index] == static_cast<Node>(m_player)) {
                 m_select_index = index;
@@ -515,49 +548,49 @@ namespace board {
         }
     }
 
-    // void MuhleBoard::user_place(int place_index) {
+    // void Board::user_place(int place_index) {
     //     place(place_index);
 
     //     m_pieces[new_piece_to_place(opponent(m_player))].move(node_position(place_index));
     //     m_pieces[new_piece_to_place(opponent(m_player))].node_index = place_index;
     // }
 
-    // void MuhleBoard::user_place_take_just_place(int place_index) {
+    // void Board::user_place_take_just_place(int place_index) {
     //     m_take_action_index = place_index;
 
     //     m_pieces[new_piece_to_place(opponent(m_player))].move(node_position(place_index));
     //     m_pieces[new_piece_to_place(opponent(m_player))].node_index = place_index;
     // }
 
-    // void MuhleBoard::user_place_take(int place_index, int take_index) {
+    // void Board::user_place_take(int place_index, int take_index) {
     //     place_take(place_index, take_index);
 
     //     m_pieces[piece_on_node(take_index)].move(ImVec2());
     //     m_pieces[piece_on_node(take_index)].node_index = -1;
     // }
 
-    // void MuhleBoard::user_move(int source_index, int destination_index) {
+    // void Board::user_move(int source_index, int destination_index) {
     //     move(source_index, destination_index);
 
     //     m_pieces[piece_on_node(source_index)].move(node_position(destination_index));
     //     m_pieces[piece_on_node(source_index)].node_index = destination_index;
     // }
 
-    // void MuhleBoard::user_move_take_just_move(int source_index, int destination_index) {
+    // void Board::user_move_take_just_move(int source_index, int destination_index) {
     //     m_take_action_index = destination_index;
 
     //     m_pieces[piece_on_node(source_index)].move(node_position(destination_index));
     //     m_pieces[piece_on_node(source_index)].node_index = destination_index;
     // }
 
-    // void MuhleBoard::user_move_take(int source_index, int destination_index, int take_index) {
+    // void Board::user_move_take(int source_index, int destination_index, int take_index) {
     //     move_take(source_index, destination_index, take_index);
 
     //     m_pieces[piece_on_node(take_index)].move(ImVec2());
     //     m_pieces[piece_on_node(take_index)].node_index = -1;
     // }
 
-    // void MuhleBoard::try_place(int place_index) {
+    // void Board::try_place(int place_index) {
     //     auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
     //         return move.type == MoveType::Place && move.place.place_index == place_index;
     //     })};
@@ -576,7 +609,7 @@ namespace board {
     //     }
     // }
 
-    // void MuhleBoard::try_place_take(int place_index, int take_index) {
+    // void Board::try_place_take(int place_index, int take_index) {
     //     const auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
     //         return (
     //             move.type == MoveType::PlaceTake &&
@@ -590,7 +623,7 @@ namespace board {
     //     }
     // }
 
-    // void MuhleBoard::try_move(int source_index, int destination_index) {
+    // void Board::try_move(int source_index, int destination_index) {
     //     auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
     //         return (
     //             move.type == MoveType::Move &&
@@ -617,7 +650,7 @@ namespace board {
     //     }
     // }
 
-    // void MuhleBoard::try_move_take(int source_index, int destination_index, int take_index) {
+    // void Board::try_move_take(int source_index, int destination_index, int take_index) {
     //     const auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
     //         return (
     //             move.type == MoveType::MoveTake &&
@@ -632,7 +665,7 @@ namespace board {
     //     }
     // }
 
-    void MuhleBoard::try_place(int place_index) {
+    void Board::try_place(int place_index) {
         {
             const auto iter {std::find_if(m_legal_moves.cbegin(), m_legal_moves.cend(), [=](const Move& move) {
                 return move.type == MoveType::Place && move.place.place_index == place_index;
@@ -662,7 +695,7 @@ namespace board {
         }
     }
 
-    void MuhleBoard::try_move(int source_index, int destination_index) {
+    void Board::try_move(int source_index, int destination_index) {
         {
             const auto iter {std::find_if(m_legal_moves.cbegin(), m_legal_moves.cend(), [=](const Move& move) {
                 return move.type == MoveType::Move && move.move.source_index == source_index && move.move.destination_index == destination_index;
@@ -692,7 +725,7 @@ namespace board {
         }
     }
 
-    void MuhleBoard::try_capture(int capture_index) {
+    void Board::try_capture(int capture_index) {
         const auto iter {std::find_if(m_candidate_moves.cbegin(), m_candidate_moves.cend(), [=](const Move& move) {
             switch (move.type) {
                 case MoveType::PlaceCapture:
@@ -730,7 +763,7 @@ namespace board {
         }
     }
 
-    void MuhleBoard::play_place_move(int place_index) {
+    void Board::play_place_move(int place_index) {
         assert(m_board[place_index] == Node::None);
 
         m_board[place_index] = static_cast<Node>(m_player);
@@ -741,7 +774,7 @@ namespace board {
         m_move_callback(Move::create_place(place_index));
     }
 
-    void MuhleBoard::play_place_capture_move(int place_index, int capture_index) {
+    void Board::play_place_capture_move(int place_index, int capture_index) {
         assert(m_board[place_index] == Node::None);
         assert(m_board[capture_index] != Node::None);
 
@@ -755,7 +788,7 @@ namespace board {
         m_move_callback(Move::create_place_capture(place_index, capture_index));
     }
 
-    void MuhleBoard::play_move_move(int source_index, int destination_index) {
+    void Board::play_move_move(int source_index, int destination_index) {
         assert(m_board[source_index] != Node::None);
         assert(m_board[destination_index] == Node::None);
 
@@ -769,7 +802,7 @@ namespace board {
         m_move_callback(Move::create_move(source_index, destination_index));
     }
 
-    void MuhleBoard::play_move_capture_move(int source_index, int destination_index, int capture_index) {
+    void Board::play_move_capture_move(int source_index, int destination_index, int capture_index) {
         assert(m_board[source_index] != Node::None);
         assert(m_board[destination_index] == Node::None);
         assert(m_board[capture_index] != Node::None);
@@ -784,7 +817,7 @@ namespace board {
         m_move_callback(Move::create_move_capture(source_index, destination_index, capture_index));
     }
 
-    void MuhleBoard::finish_turn(bool advancement) {
+    void Board::finish_turn(bool advancement) {
         m_player = opponent(m_player);
 
         m_plies++;
@@ -803,7 +836,7 @@ namespace board {
         m_select_index = -1;
     }
 
-    void MuhleBoard::check_winner_material() {
+    void Board::check_winner_material() {
         if (m_game_over != GameOver::None) {
             return;
         }
@@ -817,7 +850,7 @@ namespace board {
         }
     }
 
-    void MuhleBoard::check_winner_blocking() {
+    void Board::check_winner_blocking() {
         if (m_game_over != GameOver::None) {
             return;
         }
@@ -827,7 +860,7 @@ namespace board {
         }
     }
 
-    void MuhleBoard::check_fifty_move_rule() {
+    void Board::check_fifty_move_rule() {
         if (m_game_over != GameOver::None) {
             return;
         }
@@ -837,7 +870,7 @@ namespace board {
         }
     }
 
-    void MuhleBoard::check_threefold_repetition(const Position& position) {
+    void Board::check_threefold_repetition(const Position& position) {
         if (m_game_over != GameOver::None) {
             return;
         }
@@ -854,7 +887,7 @@ namespace board {
         }
     }
 
-    void MuhleBoard::initialize_pieces() {
+    void Board::initialize_pieces() {
         for (std::size_t i {0}; i < 9; i++) {
             m_pieces[i] = PieceObj(Player::White);
         }
@@ -864,7 +897,7 @@ namespace board {
         }
     }
 
-    int MuhleBoard::new_piece_to_place(Player type) const {
+    int Board::new_piece_to_place(Player type) const {
         for (std::size_t i {0}; i < m_pieces.size(); i++) {
             if (m_pieces[i].get_type() == type && m_pieces[i].node_index == -1) {
                 return static_cast<int>(i);
@@ -875,7 +908,7 @@ namespace board {
         return {};
     }
 
-    int MuhleBoard::piece_on_node(int index) const {
+    int Board::piece_on_node(int index) const {
         for (std::size_t i {0}; i < m_pieces.size(); i++) {
             if (m_pieces[i].node_index == index) {
                 return static_cast<int>(i);
@@ -886,7 +919,7 @@ namespace board {
         return {};
     }
 
-    int MuhleBoard::get_index(ImVec2 position) const {
+    int Board::get_index(ImVec2 position) const {
         for (int i {0}; i < 24; i++) {
             if (point_in_circle(position, node_position(i), m_board_unit / NODE_RADIUS)) {
                 return i;
@@ -896,23 +929,23 @@ namespace board {
         return -1;
     }
 
-    ImVec2 MuhleBoard::node_position(int index) const {
+    ImVec2 Board::node_position(int index) const {
         return ImVec2(
             static_cast<float>(NODE_POSITIONS[index][0]) * m_board_unit + m_board_offset.x,
             static_cast<float>(NODE_POSITIONS[index][1]) * m_board_unit + m_board_offset.y
         );
     }
 
-    bool MuhleBoard::point_in_circle(ImVec2 point, ImVec2 circle, float radius) {
+    bool Board::point_in_circle(ImVec2 point, ImVec2 circle, float radius) {
         const ImVec2 subtracted {circle.x - point.x, circle.y - point.y};
         const float length {std::pow(subtracted.x * subtracted.x + subtracted.y * subtracted.y, 0.5f)};
 
         return length < radius;
     }
 
-    std::vector<Move> MuhleBoard::generate_moves() const {
+    std::vector<Move> Board::generate_moves() const {
         std::vector<Move> moves;
-        Board local_board {m_board};
+        Board_ local_board {m_board};
 
         if (m_plies < 18) {
             generate_moves_phase1(local_board, moves, m_player);
@@ -927,7 +960,7 @@ namespace board {
         return moves;
     }
 
-    void MuhleBoard::generate_moves_phase1(Board& board, std::vector<Move>& moves, Player player) {
+    void Board::generate_moves_phase1(Board_& board, std::vector<Move>& moves, Player player) {
         for (int i {0}; i < 24; i++) {
             if (board[i] != Node::None) {
                 continue;
@@ -958,7 +991,7 @@ namespace board {
         }
     }
 
-    void MuhleBoard::generate_moves_phase2(Board& board, std::vector<Move>& moves, Player player) {
+    void Board::generate_moves_phase2(Board_& board, std::vector<Move>& moves, Player player) {
         for (int i {0}; i < 24; i++) {
             if (board[i] != static_cast<Node>(player)) {
                 continue;
@@ -993,7 +1026,7 @@ namespace board {
         }
     }
 
-    void MuhleBoard::generate_moves_phase3(Board& board, std::vector<Move>& moves, Player player) {
+    void Board::generate_moves_phase3(Board_& board, std::vector<Move>& moves, Player player) {
         for (int i {0}; i < 24; i++) {
             if (board[i] != static_cast<Node>(player)) {
                 continue;
@@ -1030,26 +1063,26 @@ namespace board {
         }
     }
 
-    void MuhleBoard::make_place_move(Board& board, Player player, int place_index) {
+    void Board::make_place_move(Board_& board, Player player, int place_index) {
         assert(board[place_index] == Node::None);
 
         board[place_index] = static_cast<Node>(player);
     }
 
-    void MuhleBoard::unmake_place_move(Board& board, int place_index) {
+    void Board::unmake_place_move(Board_& board, int place_index) {
         assert(board[place_index] != Node::None);
 
         board[place_index] = Node::None;
     }
 
-    void MuhleBoard::make_move_move(Board& board, int source_index, int destination_index) {
+    void Board::make_move_move(Board_& board, int source_index, int destination_index) {
         assert(board[source_index] != Node::None);
         assert(board[destination_index] == Node::None);
 
         std::swap(board[source_index], board[destination_index]);
     }
 
-    void MuhleBoard::unmake_move_move(Board& board, int source_index, int destination_index) {
+    void Board::unmake_move_move(Board_& board, int source_index, int destination_index) {
         assert(board[source_index] == Node::None);
         assert(board[destination_index] != Node::None);
 
@@ -1061,7 +1094,7 @@ namespace board {
     #pragma GCC diagnostic ignored "-Wparentheses"
 #endif
 
-    bool MuhleBoard::is_mill(const Board& board, Player player, int index) {
+    bool Board::is_mill(const Board_& board, Player player, int index) {
         const Node node {static_cast<Node>(player)};
 
         assert(board[index] == node);
@@ -1100,7 +1133,7 @@ namespace board {
     #pragma GCC diagnostic pop
 #endif
 
-    bool MuhleBoard::all_pieces_in_mills(const Board& board, Player player) {
+    bool Board::all_pieces_in_mills(const Board_& board, Player player) {
         for (int i {0}; i < 24; i++) {
             if (board[i] != static_cast<Node>(player)) {
                 continue;
@@ -1119,7 +1152,7 @@ namespace board {
         result.push_back(const_index); \
     }
 
-    std::vector<int> MuhleBoard::neighbor_free_positions(const Board& board, int index) {
+    std::vector<int> Board::neighbor_free_positions(const Board_& board, int index) {
         std::vector<int> result;
         result.reserve(4);
 
@@ -1241,7 +1274,7 @@ namespace board {
         return result;
     }
 
-    unsigned int MuhleBoard::count_pieces(const Board& board, Player player) {
+    unsigned int Board::count_pieces(const Board_& board, Player player) {
         int result {0};
 
         for (const Node node : board) {
@@ -1251,7 +1284,7 @@ namespace board {
         return result;
     }
 
-    Player MuhleBoard::opponent(Player player) {
+    Player Board::opponent(Player player) {
         if (player == Player::White) {
             return Player::Black;
         } else {
@@ -1319,6 +1352,46 @@ namespace board {
                 result += index_to_string(move.move_capture.capture_index);
                 break;
         }
+
+        return result;
+    }
+
+    Position position_from_string(const std::string& string) {
+
+    }
+
+    std::string position_to_string(const Position& position) {
+        std::string result;
+
+        switch (position.player) {
+            case Player::White:
+                result += 'w';
+                break;
+            case Player::Black:
+                result += 'b';
+                break;
+        }
+
+        result += ":w";
+        for (int i {0}; i < 24; i++) {
+            if (position.board[i] != Node::White) {
+                continue;
+            }
+
+            result += index_to_string(i);
+        }
+
+        result += ":b";
+        for (int i {0}; i < 24; i++) {
+            if (position.board[i] != Node::Black) {
+                continue;
+            }
+
+            result += index_to_string(i);
+        }
+
+        result += ':';
+        result += std::to_string(position.plies);
 
         return result;
     }
