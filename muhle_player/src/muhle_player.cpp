@@ -101,7 +101,7 @@ void MuhlePlayer::update() {
             // }
             try {
                 m_engine.start_thinking(
-                    board::position_to_string(m_board.get_position()),
+                    std::nullopt,
                     m_moves,
                     std::nullopt,
                     std::nullopt,

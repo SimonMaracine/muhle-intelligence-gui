@@ -73,7 +73,7 @@ namespace board {
     struct Position {
         Board_ board {};
         Player player {};
-        unsigned int plies {};
+        unsigned int plies {};  // FIXME
 
         bool operator==(const Position& other) const {
             return board == other.board && player == other.player && plies == other.plies;

@@ -169,10 +169,10 @@ namespace engine {
         try {
             m_subprocess.write(
                 "go"s +
-                (wtime ? " wtime " + *wtime : "") +
-                (btime ? " btime " + *btime : "") +
-                (max_depth ? " maxdepth " + *max_depth : "") +
-                (max_time ? " maxtime " + *max_time : "") +
+                (wtime ? " wtime " + std::to_string(*wtime) : "") +
+                (btime ? " btime " + std::to_string(*btime) : "") +
+                (max_depth ? " maxdepth " + std::to_string(*max_depth) : "") +
+                (max_time ? " maxtime " + std::to_string(*max_time) : "") +
                 '\n'
             );
         } catch (const subprocess::Error& e) {

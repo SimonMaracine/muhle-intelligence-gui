@@ -1302,7 +1302,7 @@ namespace board {
                 return Move::create_place(place_index);
             }
             case 2: {
-                if (string.find('-') != string.npos) {
+                if (string.find('-') == string.npos) {
                     const auto place_index {index_from_string(tokens[0])};
                     const auto capture_index {index_from_string(tokens[1])};
 
