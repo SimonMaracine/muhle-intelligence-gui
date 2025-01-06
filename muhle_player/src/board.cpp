@@ -769,7 +769,7 @@ namespace board {
         m_board[place_index] = static_cast<Node>(m_player);
 
         finish_turn();
-        check_winner_blocking();
+        check_legal_moves();
 
         m_move_callback(Move::create_place(place_index));
     }
@@ -782,8 +782,8 @@ namespace board {
         m_board[capture_index] = Node::None;
 
         finish_turn();
-        check_winner_material();
-        check_winner_blocking();
+        check_material();
+        check_legal_moves();
 
         m_move_callback(Move::create_place_capture(place_index, capture_index));
     }
@@ -795,9 +795,9 @@ namespace board {
         std::swap(m_board[source_index], m_board[destination_index]);
 
         finish_turn(false);
-        check_winner_blocking();
+        check_legal_moves();
+        check_threefold_repetition();
         check_fifty_move_rule();
-        check_threefold_repetition({m_board, m_player});
 
         m_move_callback(Move::create_move(source_index, destination_index));
     }
@@ -811,15 +811,14 @@ namespace board {
         m_board[capture_index] = Node::None;
 
         finish_turn();
-        check_winner_material();
-        check_winner_blocking();
+        check_material();
+        check_legal_moves();
 
         m_move_callback(Move::create_move_capture(source_index, destination_index, capture_index));
     }
 
     void Board::finish_turn(bool advancement) {
         m_player = opponent(m_player);
-
         m_plies++;
         m_legal_moves = generate_moves();
 
@@ -830,13 +829,14 @@ namespace board {
             m_plies_no_advancement++;
         }
 
-        m_positions.push_back({m_board, m_player});
+        // Store the current position anyway
+        m_positions.push_back({m_board, m_player, m_plies});
 
         m_capture_piece = false;
         m_select_index = -1;
     }
 
-    void Board::check_winner_material() {
+    void Board::check_material() {
         if (m_game_over != GameOver::None) {
             return;
         }
@@ -850,7 +850,7 @@ namespace board {
         }
     }
 
-    void Board::check_winner_blocking() {
+    void Board::check_legal_moves() {
         if (m_game_over != GameOver::None) {
             return;
         }
@@ -870,37 +870,34 @@ namespace board {
         }
     }
 
-    void Board::check_threefold_repetition(const Position& position) {
+    void Board::check_threefold_repetition() {
         if (m_game_over != GameOver::None) {
             return;
         }
 
-        int repetitions {1};
+        const auto count {std::count(m_positions.cbegin(), m_positions.cend(), Position {m_board, m_player, m_plies})};
 
-        for (auto iter {m_positions.begin()}; iter != std::prev(m_positions.end()); iter++) {
-            if (*iter == position) {
-                if (++repetitions == 3) {
-                    m_game_over = GameOver::TieBetweenBothPlayers;
-                    return;
-                }
-            }
+        assert(count >= 1);
+
+        if (count == 3) {
+            m_game_over = GameOver::TieBetweenBothPlayers;
         }
     }
 
     void Board::initialize_pieces() {
-        for (std::size_t i {0}; i < 9; i++) {
+        for (int i {0}; i < 9; i++) {
             m_pieces[i] = PieceObj(Player::White);
         }
 
-        for (std::size_t i {9}; i < 18; i++) {
+        for (int i {9}; i < 18; i++) {
             m_pieces[i] = PieceObj(Player::Black);
         }
     }
 
     int Board::new_piece_to_place(Player type) const {
-        for (std::size_t i {0}; i < m_pieces.size(); i++) {
+        for (int i {0}; i < m_pieces.size(); i++) {
             if (m_pieces[i].get_type() == type && m_pieces[i].node_index == -1) {
-                return static_cast<int>(i);
+                return i;
             }
         }
 
@@ -909,9 +906,9 @@ namespace board {
     }
 
     int Board::piece_on_node(int index) const {
-        for (std::size_t i {0}; i < m_pieces.size(); i++) {
+        for (int i {0}; i < m_pieces.size(); i++) {
             if (m_pieces[i].node_index == index) {
-                return static_cast<int>(i);
+                return i;
             }
         }
 

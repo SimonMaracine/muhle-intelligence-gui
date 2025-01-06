@@ -134,6 +134,8 @@ void MuhlePlayer::update() {
                     break;
                 }
 
+                std::cout << "Playing move on the board " << *best_move << '\n';
+
                 m_board.play_move(board::move_from_string(*best_move));
             }
 
@@ -293,13 +295,13 @@ void MuhlePlayer::unload_engine() {
 void MuhlePlayer::main_menu_bar() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Player")) {
-            if (ImGui::MenuItem("Load Engine")) {
+            if (ImGui::MenuItem("Load Engine", nullptr, nullptr, m_state == State::NotStarted)) {
                 load_engine();
             }
-            if (ImGui::MenuItem("Reset Position", nullptr, nullptr, m_state != State::ComputerThinking)) {
+            if (ImGui::MenuItem("Reset Position", nullptr, nullptr, m_state == State::NotStarted)) {
                 reset_position();
             }
-            if (ImGui::BeginMenu("Set Position")) {
+            if (ImGui::BeginMenu("Set Position", m_state == State::NotStarted)) {
                 set_position();
 
                 ImGui::EndMenu();
@@ -365,6 +367,7 @@ void MuhlePlayer::reset_position() {
             m_engine.synchronize();
         } catch (const subprocess::Error& e) {
             std::cerr << "Engine error: " << e.what() << '\n';
+            return;
         }
     }
 
@@ -411,9 +414,15 @@ void MuhlePlayer::controls() {
 
         ImGui::Spacing();
 
-        if (ImGui::Button("Start Game")) {
-            if (m_engine.active()) {
-                m_state = State::NextTurn;
+        if (m_state != State::NotStarted) {
+            ImGui::BeginDisabled();
+            ImGui::Button("Start Game");
+            ImGui::EndDisabled();
+        } else {
+            if (ImGui::Button("Start Game")) {
+                if (m_engine.active()) {
+                    m_state = State::NextTurn;
+                }
             }
         }
 

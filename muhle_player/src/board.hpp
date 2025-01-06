@@ -145,10 +145,10 @@ namespace board {
         void play_move_capture_move(int source_index, int destination_index, int capture_index);
 
         void finish_turn(bool advancement = true);
-        void check_winner_material();
-        void check_winner_blocking();
+        void check_material();
+        void check_legal_moves();
         void check_fifty_move_rule();
-        void check_threefold_repetition(const Position& position);
+        void check_threefold_repetition();
 
         void initialize_pieces();
         int new_piece_to_place(Player type) const;
