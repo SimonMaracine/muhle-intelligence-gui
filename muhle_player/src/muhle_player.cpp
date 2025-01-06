@@ -3,6 +3,7 @@
 #include <iostream>
 #include <filesystem>
 #include <chrono>
+#include <stdexcept>
 
 #include <gui_base/gui_base.hpp>
 #include <ImGuiFileDialog.h>
@@ -16,7 +17,9 @@ void MuhlePlayer::start() {
         m_moves.push_back(board::move_to_string(move));
 
         if (m_board.get_game_over() != board::GameOver::None) {
-            m_state = State::NotStarted;
+            // TODO check engine
+
+            m_state = State::Over;
             return;
         }
 
@@ -28,36 +31,6 @@ void MuhlePlayer::start() {
                 m_state = State::NextTurn;
                 break;
         }
-
-        // if (!m_muhle_process.active()) {
-        //     return;
-        // }
-
-        // int player {};
-
-        // switch (m_muhle_board.get_player()) {
-        //     case board::Player::White:
-        //         player = m_black;
-        //         break;
-        //     case board::Player::Black:
-        //         player = m_white;
-        //         break;
-        // }
-
-        // switch (player) {
-        //     case PlayerHuman:
-        //         try {
-        //             m_muhle_process.write("move " + board::move_to_string(move) + '\n');
-        //         } catch (const subprocess::Error& e) {
-        //             terminate_process(e.what());
-        //         }
-
-        //         m_state = State::NextTurn;
-
-        //         break;
-        //     case PlayerComputer:
-        //         break;
-        // }
     });
 }
 
@@ -93,12 +66,6 @@ void MuhlePlayer::update() {
         case State::HumanThinking:
             break;
         case State::ComputerBegin:
-            // try {
-            //     m_muhle_process.write("go\n");
-            // } catch (const subprocess::Error& e) {
-            //     terminate_process(e.what());
-            //     break;
-            // }
             try {
                 m_engine.start_thinking(
                     std::nullopt,
@@ -110,7 +77,7 @@ void MuhlePlayer::update() {
                 );
             } catch (const subprocess::Error& e) {
                 std::cerr << "Engine error: " << e.what() << '\n';
-                m_state = State::NotStarted;
+                m_state = State::Over;
                 break;
             }
 
@@ -124,13 +91,16 @@ void MuhlePlayer::update() {
                 best_move = m_engine.done_thinking();
             } catch (const subprocess::Error& e) {
                 std::cerr << "Engine error: " << e.what() << '\n';
-                m_state = State::NotStarted;
+                m_state = State::Over;
                 break;
             }
 
             if (best_move) {
                 if (*best_move == "none") {
-                    m_state = State::NotStarted;
+                    if (m_board.get_game_over() == board::GameOver::None) {
+                        throw std::runtime_error("The engine calls game over, but the GUI doesn't agree");
+                    }
+
                     break;
                 }
 
@@ -139,48 +109,10 @@ void MuhlePlayer::update() {
                 m_board.play_move(board::move_from_string(*best_move));
             }
 
-            // std::optional<std::string> message;
-
-            // try {
-            //     message = m_muhle_process.read();
-            // } catch (const subprocess::Error& e) {
-            //     terminate_process(e.what());
-            //     break;
-            // }
-
-            // if (!message) {
-            //     break;
-            // }
-
-            // const auto tokens {parse_message(message->substr(0, message->size() - 1))};
-
-            // if (tokens.at(0) == "bestmove") {
-            //     if (tokens.at(1) == "none") {
-            //         break;
-            //     }
-
-            //     const auto move {board::move_from_string(tokens.at(1))};
-
-            //     switch (move.type) {
-            //         case board::MoveType::Place:
-            //             m_muhle_board.place_piece(move.place.place_index);
-            //             break;
-            //         case board::MoveType::PlaceTake:
-            //             m_muhle_board.place_take_piece(move.place_take.place_index, move.place_take.take_index);
-            //             break;
-            //         case board::MoveType::Move:
-            //             m_muhle_board.move_piece(move.move.source_index, move.move.destination_index);
-            //             break;
-            //         case board::MoveType::MoveTake:
-            //             m_muhle_board.move_take_piece(move.move_take.source_index, move.move_take.destination_index, move.move_take.take_index);
-            //             break;
-            //     }
-
-            //     m_state = State::NextTurn;
-            // }
-
             break;
         }
+        case State::Over:
+            break;
     }
 }
 
@@ -211,56 +143,6 @@ void MuhlePlayer::load_engine(const std::string& file_path) {
     }
 
     m_engine_name = m_engine.get_name();
-    // try {
-    //     m_muhle_process = subprocess::Subprocess(file_path);
-    // } catch (const subprocess::Error& e) {
-    //     std::cerr << "Could not start engine: " << e.what() << '\n';
-    //     return;
-    // }
-
-    // {
-    //     const auto begin {std::chrono::steady_clock::now()};
-
-    //     while (true) {
-    //         using namespace std::chrono_literals;
-
-    //         const auto now {std::chrono::steady_clock::now()};
-
-    //         if (now - begin > 5s) {
-    //             terminate_process("Engine did not respond in a timely manner, aborting");
-    //             return;
-    //         }
-
-    //         std::optional<std::string> message;
-
-    //         try {
-    //             message = m_muhle_process.read();
-    //         } catch (const subprocess::Error& e) {
-    //             terminate_process(e.what());
-    //             return;
-    //         }
-
-    //         if (!message) {
-    //             continue;
-    //         }
-
-    //         if (*message == "ready\n") {
-    //             break;
-    //         }
-
-    //         terminate_process("Engine did not respond with the ready message, aborting");
-    //         return;
-    //     }
-    // }
-
-    // try {
-    //     m_muhle_process.write("init\n");
-    // } catch (const subprocess::Error& e) {
-    //     terminate_process(e.what());
-    //     return;
-    // }
-
-    // m_engine_name = std::filesystem::path(file_path).filename();
 }
 
 void MuhlePlayer::unload_engine() {
@@ -273,35 +155,18 @@ void MuhlePlayer::unload_engine() {
     } catch (const subprocess::Error& e) {
         std::cerr << "Could not stop engine: " << e.what() << '\n';
     }
-
-    // if (!m_muhle_process.active()) {
-    //     return;
-    // }
-
-    // try {
-    //     m_muhle_process.write("quit\n");
-    // } catch (const subprocess::Error& e) {
-    //     terminate_process(e.what());
-    //     return;
-    // }
-
-    // try {
-    //     m_muhle_process.wait();
-    // } catch (const subprocess::Error& e) {
-    //     std::cerr << e.what() << '\n';
-    // }
 }
 
 void MuhlePlayer::main_menu_bar() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Player")) {
-            if (ImGui::MenuItem("Load Engine", nullptr, nullptr, m_state == State::NotStarted)) {
+            if (ImGui::MenuItem("Load Engine", nullptr, nullptr, m_state == State::NotStarted || m_state == State::Over)) {
                 load_engine();
             }
-            if (ImGui::MenuItem("Reset Position", nullptr, nullptr, m_state == State::NotStarted)) {
+            if (ImGui::MenuItem("Reset Position", nullptr, nullptr, m_state == State::NotStarted || m_state == State::Over)) {
                 reset_position();
             }
-            if (ImGui::BeginMenu("Set Position", m_state == State::NotStarted)) {
+            if (ImGui::BeginMenu("Set Position", m_state == State::NotStarted || m_state == State::Over)) {
                 set_position();
 
                 ImGui::EndMenu();
@@ -373,17 +238,7 @@ void MuhlePlayer::reset_position() {
 
     m_board.reset(std::nullopt);
     m_state = State::NotStarted;
-
-    // if (m_muhle_process.active()) {
-    //     try {
-    //         m_muhle_process.write("newgame\n");
-    //     } catch (const subprocess::Error& e) {
-    //         terminate_process(e.what());
-    //     }
-    // }
-
-    // m_muhle_board.reset();
-    // m_state = State::NextTurn;
+    m_moves.clear();
 }
 
 void MuhlePlayer::set_position() {

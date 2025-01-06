@@ -49,7 +49,8 @@ private:
         NextTurn,
         HumanThinking,
         ComputerBegin,
-        ComputerThinking
+        ComputerThinking,
+        Over
     } m_state {State::NotStarted};
 
     std::vector<std::string> m_moves;

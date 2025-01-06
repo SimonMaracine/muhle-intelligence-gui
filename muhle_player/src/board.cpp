@@ -306,7 +306,7 @@ namespace board {
 
             const float width {m_board_unit < 55.0f ? 2.0f : 3.0f};
 
-            if (m_select_index != -1 /*&& m_take_action_index == -1*/) {
+            if (m_select_index != -1) {
                 const ImVec2 position {
                     static_cast<float>(NODE_POSITIONS[m_select_index][0]) * m_board_unit + m_board_offset.x,
                     static_cast<float>(NODE_POSITIONS[m_select_index][1]) * m_board_unit + m_board_offset.y
@@ -420,79 +420,6 @@ namespace board {
         }
     }
 
-    // void Board::place_piece(int place_index) {
-    //     const auto iter {std::find_if(m_legal_moves.cbegin(), m_legal_moves.cend(), [=](const Move& move) {
-    //         return move.type == MoveType::Place && move.place.place_index == place_index;
-    //     })};
-
-    //     if (iter == m_legal_moves.cend()) {
-    //         throw BoardError("Illegal move");
-    //     }
-
-    //     m_pieces[new_piece_to_place(m_player)].move(node_position(place_index));
-    //     m_pieces[new_piece_to_place(m_player)].node_index = place_index;
-
-    //     place(place_index);
-    // }
-
-    // void Board::place_capture_piece(int place_index, int take_index) {
-    //     const auto iter {std::find_if(m_legal_moves.cbegin(), m_legal_moves.cend(), [=](const Move& move) {
-    //         return (
-    //             move.type == MoveType::PlaceCapture &&
-    //             move.place_take.place_index == place_index &&
-    //             move.place_take.take_index == take_index
-    //         );
-    //     })};
-
-    //     if (iter == m_legal_moves.cend()) {
-    //         throw BoardError("Illegal move");
-    //     }
-
-    //     place_take(place_index, take_index);
-
-    //     m_pieces[new_piece_to_place(opponent(m_player))].move(node_position(place_index));
-    //     m_pieces[new_piece_to_place(opponent(m_player))].node_index = place_index;
-    //     m_pieces[piece_on_node(take_index)].move(ImVec2());
-    //     m_pieces[piece_on_node(take_index)].node_index = -1;
-    // }
-
-    // void Board::move_piece(int source_index, int destination_index) {
-    //     const auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
-    //         return (
-    //             move.type == MoveType::Move &&
-    //             move.move.source_index == source_index &&
-    //             move.move.destination_index == destination_index
-    //         );
-    //     })};
-
-    //     assert(iter != m_legal_moves.end());
-
-    //     move(source_index, destination_index);
-
-    //     m_pieces[piece_on_node(source_index)].move(node_position(destination_index));
-    //     m_pieces[piece_on_node(source_index)].node_index = destination_index;
-    // }
-
-    // void Board::move_take_piece(int source_index, int destination_index, int take_index) {
-    //     const auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
-    //         return (
-    //             move.type == MoveType::MoveTake &&
-    //             move.move_take.source_index == source_index &&
-    //             move.move_take.destination_index == destination_index &&
-    //             move.move_take.take_index == take_index
-    //         );
-    //     })};
-
-    //     assert(iter != m_legal_moves.end());  // FIXME this failed once
-
-    //     move_take(source_index, destination_index, take_index);
-
-    //     m_pieces[piece_on_node(source_index)].move(node_position(destination_index));
-    //     m_pieces[piece_on_node(source_index)].node_index = destination_index;
-    //     m_pieces[piece_on_node(take_index)].move(ImVec2());
-    //     m_pieces[piece_on_node(take_index)].node_index = -1;
-    // }
-
     void Board::update_user_input() {
         if (!ImGui::IsWindowFocused()) {
             return;
@@ -533,137 +460,12 @@ namespace board {
             }
         } else {
             if (index == m_select_index) {
-                // if (m_take_action_index == -1) {
-                //     m_selected_index = -1;
-                // }
-
                 m_select_index = -1;
             } else if (m_board[index] == static_cast<Node>(m_player)) {
-                // if (m_take_action_index == -1) {
-                //     m_selected_index = index;
-                // }
-
-                m_select_index = -1;
+                m_select_index = index;
             }
         }
     }
-
-    // void Board::user_place(int place_index) {
-    //     place(place_index);
-
-    //     m_pieces[new_piece_to_place(opponent(m_player))].move(node_position(place_index));
-    //     m_pieces[new_piece_to_place(opponent(m_player))].node_index = place_index;
-    // }
-
-    // void Board::user_place_take_just_place(int place_index) {
-    //     m_take_action_index = place_index;
-
-    //     m_pieces[new_piece_to_place(opponent(m_player))].move(node_position(place_index));
-    //     m_pieces[new_piece_to_place(opponent(m_player))].node_index = place_index;
-    // }
-
-    // void Board::user_place_take(int place_index, int take_index) {
-    //     place_take(place_index, take_index);
-
-    //     m_pieces[piece_on_node(take_index)].move(ImVec2());
-    //     m_pieces[piece_on_node(take_index)].node_index = -1;
-    // }
-
-    // void Board::user_move(int source_index, int destination_index) {
-    //     move(source_index, destination_index);
-
-    //     m_pieces[piece_on_node(source_index)].move(node_position(destination_index));
-    //     m_pieces[piece_on_node(source_index)].node_index = destination_index;
-    // }
-
-    // void Board::user_move_take_just_move(int source_index, int destination_index) {
-    //     m_take_action_index = destination_index;
-
-    //     m_pieces[piece_on_node(source_index)].move(node_position(destination_index));
-    //     m_pieces[piece_on_node(source_index)].node_index = destination_index;
-    // }
-
-    // void Board::user_move_take(int source_index, int destination_index, int take_index) {
-    //     move_take(source_index, destination_index, take_index);
-
-    //     m_pieces[piece_on_node(take_index)].move(ImVec2());
-    //     m_pieces[piece_on_node(take_index)].node_index = -1;
-    // }
-
-    // void Board::try_place(int place_index) {
-    //     auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
-    //         return move.type == MoveType::Place && move.place.place_index == place_index;
-    //     })};
-
-    //     if (iter != m_legal_moves.end()) {
-    //         user_place(place_index);
-    //         return;
-    //     }
-
-    //     iter = std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
-    //         return move.type == MoveType::PlaceTake && move.place_take.place_index == place_index;
-    //     });
-
-    //     if (iter != m_legal_moves.end()) {
-    //         user_place_take_just_place(place_index);
-    //     }
-    // }
-
-    // void Board::try_place_take(int place_index, int take_index) {
-    //     const auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
-    //         return (
-    //             move.type == MoveType::PlaceTake &&
-    //             move.place_take.place_index == place_index &&
-    //             move.place_take.take_index == take_index
-    //         );
-    //     })};
-
-    //     if (iter != m_legal_moves.end()) {
-    //         user_place_take(place_index, take_index);
-    //     }
-    // }
-
-    // void Board::try_move(int source_index, int destination_index) {
-    //     auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
-    //         return (
-    //             move.type == MoveType::Move &&
-    //             move.move.source_index == source_index &&
-    //             move.move.destination_index == destination_index
-    //         );
-    //     })};
-
-    //     if (iter != m_legal_moves.end()) {
-    //         user_move(source_index, destination_index);
-    //         return;
-    //     }
-
-    //     iter = std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
-    //         return (
-    //             move.type == MoveType::MoveTake &&
-    //             move.move_take.source_index == source_index &&
-    //             move.move_take.destination_index == destination_index
-    //         );
-    //     });
-
-    //     if (iter != m_legal_moves.end()) {
-    //         user_move_take_just_move(source_index, destination_index);
-    //     }
-    // }
-
-    // void Board::try_move_take(int source_index, int destination_index, int take_index) {
-    //     const auto iter {std::find_if(m_legal_moves.begin(), m_legal_moves.end(), [=](const Move& move) {
-    //         return (
-    //             move.type == MoveType::MoveTake &&
-    //             move.move_take.source_index == source_index &&
-    //             move.move_take.destination_index == destination_index &&
-    //             move.move_take.take_index == take_index
-    //         );
-    //     })};
-
-    //     if (iter != m_legal_moves.end()) {
-    //         user_move_take(source_index, destination_index, take_index);
-    //     }
-    // }
 
     void Board::try_place(int place_index) {
         {
@@ -1322,6 +1124,8 @@ namespace board {
                 assert(false);
                 break;
         }
+
+        return {};
     }
 
     std::string move_to_string(const Move& move) {

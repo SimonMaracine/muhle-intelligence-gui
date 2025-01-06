@@ -73,10 +73,10 @@ namespace board {
     struct Position {
         Board_ board {};
         Player player {};
-        unsigned int plies {};  // FIXME
+        unsigned int plies {};
 
         bool operator==(const Position& other) const {
-            return board == other.board && player == other.player && plies == other.plies;
+            return board == other.board && player == other.player && plies >= 18 && other.plies >= 18;
         }
     };
 
@@ -114,26 +114,10 @@ namespace board {
 
         Position get_position() const;
         void play_move(const Move& move);
-
-        // void place_piece(int place_index);
-        // void place_capture_piece(int place_index, int capture_index);
-        // void move_piece(int source_index, int destination_index);
-        // void move_capture_piece(int source_index, int destination_index, int capture_index);
     private:
         void update_user_input();
         void select(int index);
 
-        // void user_place(int place_index);
-        // void user_place_take_just_place(int place_index);
-        // void user_place_take(int place_index, int take_index);
-        // void user_move(int source_index, int destination_index);
-        // void user_move_take_just_move(int source_index, int destination_index);
-        // void user_move_take(int source_index, int destination_index, int take_index);
-
-        // void try_place(int place_index);
-        // void try_place_take(int place_index, int take_index);
-        // void try_move(int source_index, int destination_index);
-        // void try_move_take(int source_index, int destination_index, int take_index);
         void try_place(int place_index);
         void try_move(int source_index, int destination_index);
         void try_capture(int capture_index);
