@@ -38,6 +38,7 @@ void MuhlePlayer::update() {
     main_menu_bar();
     board();
     controls();
+    moves();
     load_engine_dialog();
 
     if (!m_engine.active()) {
@@ -316,6 +317,27 @@ void MuhlePlayer::controls() {
             ImGui::SameLine();
             ImGui::RadioButton("Computer##b", false);
         }
+    }
+
+    ImGui::End();
+}
+
+void MuhlePlayer::moves() {
+    if (ImGui::Begin("Moves")) {
+        if (ImGui::BeginChild("Moves Inner")) {
+            for (std::size_t i {0}; i < m_moves.size(); i++) {
+                if (i % 2 == 0) {
+                    ImGui::Text("%d.", i / 2 + 1);
+                    ImGui::SameLine();
+                    ImGui::Text("%s", m_moves[i].c_str());
+                    ImGui::SameLine();
+                } else {
+                    ImGui::Text("%s", m_moves[i].c_str());
+                }
+            }
+        }
+
+        ImGui::EndChild();
     }
 
     ImGui::End();

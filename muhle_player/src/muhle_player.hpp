@@ -29,6 +29,7 @@ private:
     void notation();
     void board();
     void controls();
+    void moves();
 
     int get_player_type(board::Player player) const;
 

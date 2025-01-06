@@ -306,7 +306,7 @@ namespace board {
 
             const float width {m_board_unit < 55.0f ? 2.0f : 3.0f};
 
-            if (m_select_index != -1) {
+            if (m_select_index != -1 && !m_capture_piece) {
                 const ImVec2 position {
                     static_cast<float>(NODE_POSITIONS[m_select_index][0]) * m_board_unit + m_board_offset.x,
                     static_cast<float>(NODE_POSITIONS[m_select_index][1]) * m_board_unit + m_board_offset.y
