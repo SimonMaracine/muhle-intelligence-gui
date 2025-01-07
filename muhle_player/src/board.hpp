@@ -114,6 +114,7 @@ namespace board {
 
         Position get_position() const;
         void play_move(const Move& move);
+        void timeout(Player player);
     private:
         void update_user_input();
         void select(int index);

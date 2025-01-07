@@ -420,6 +420,17 @@ namespace board {
         }
     }
 
+    void Board::timeout(Player player) {
+        switch (player) {
+            case Player::White:
+                m_game_over = GameOver::WinnerBlack;
+                break;
+            case Player::Black:
+                m_game_over = GameOver::WinnerWhite;
+                break;
+        }
+    }
+
     void Board::update_user_input() {
         if (!ImGui::IsWindowFocused()) {
             return;
@@ -697,9 +708,9 @@ namespace board {
     }
 
     int Board::new_piece_to_place(Player type) const {
-        for (int i {0}; i < m_pieces.size(); i++) {
+        for (std::size_t i {0}; i < m_pieces.size(); i++) {
             if (m_pieces[i].get_type() == type && m_pieces[i].node_index == -1) {
-                return i;
+                return static_cast<int>(i);
             }
         }
 
@@ -708,9 +719,9 @@ namespace board {
     }
 
     int Board::piece_on_node(int index) const {
-        for (int i {0}; i < m_pieces.size(); i++) {
+        for (std::size_t i {0}; i < m_pieces.size(); i++) {
             if (m_pieces[i].node_index == index) {
-                return i;
+                return static_cast<int>(i);
             }
         }
 

@@ -2,11 +2,13 @@
 
 #include <string>
 #include <vector>
+#include <tuple>
 
 #include <gui_base/gui_base.hpp>
 
 #include "board.hpp"
 #include "engine.hpp"
+#include "clock.hpp"
 
 class MuhlePlayer : public gui_base::GuiApplication {
 public:
@@ -29,9 +31,10 @@ private:
     void notation();
     void board();
     void controls();
-    void moves();
+    void game();
 
-    int get_player_type(board::Player player) const;
+    int get_board_player_type() const;
+    static std::tuple<unsigned int, unsigned int, unsigned int> split_time(unsigned int time_milliseconds);
 
     enum PlayerType {
         PlayerHuman,
@@ -46,13 +49,17 @@ private:
     int m_black {PlayerComputer};
 
     enum class State {
-        NotStarted,
+        Ready,
+        Start,
         NextTurn,
         HumanThinking,
         ComputerBegin,
         ComputerThinking,
+        Stop,
         Over
-    } m_state {State::NotStarted};
+    } m_state {State::Ready};
 
     std::vector<std::string> m_moves;
+
+    clock_::Clock m_clock;
 };

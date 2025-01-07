@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.20)
 add_executable(muhle_player
     "src/board.cpp"
     "src/board.hpp"
+    "src/clock.cpp"
+    "src/clock.hpp"
     "src/engine.cpp"
     "src/engine.hpp"
     "src/main.cpp"

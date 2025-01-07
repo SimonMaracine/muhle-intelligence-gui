@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <chrono>
 #include <stdexcept>
+#include <cstdlib>
 
 #include <gui_base/gui_base.hpp>
 #include <ImGuiFileDialog.h>
@@ -16,14 +17,16 @@ void MuhlePlayer::start() {
     m_board = board::Board([this](const board::Move& move) {
         m_moves.push_back(board::move_to_string(move));
 
+        m_clock.switch_turn();
+
         if (m_board.get_game_over() != board::GameOver::None) {
             // TODO check engine
 
-            m_state = State::Over;
+            m_state = State::Stop;
             return;
         }
 
-        switch (get_player_type(m_board.get_player())) {
+        switch (get_board_player_type()) {
             case PlayerHuman:
                 m_state = State::NextTurn;
                 break;
@@ -38,22 +41,29 @@ void MuhlePlayer::update() {
     main_menu_bar();
     board();
     controls();
-    moves();
+    game();
     load_engine_dialog();
 
-    if (!m_engine.active()) {
-        return;
+    m_clock.update();
+
+    if (m_clock.get_white_time() == 0) {
+        m_board.timeout(board::Player::White);
     }
 
-    if (m_board.get_game_over() != board::GameOver::None) {
-        return;
+    if (m_clock.get_black_time() == 0) {
+        m_board.timeout(board::Player::Black);
     }
 
     switch (m_state) {
-        case State::NotStarted:
+        case State::Ready:
+            break;
+        case State::Start:
+            m_clock.start();
+            m_state = State::NextTurn;
+
             break;
         case State::NextTurn: {
-            switch (get_player_type(m_board.get_player())) {
+            switch (get_board_player_type()) {
                 case PlayerHuman:
                     m_state = State::HumanThinking;
                     break;
@@ -78,7 +88,7 @@ void MuhlePlayer::update() {
                 );
             } catch (const subprocess::Error& e) {
                 std::cerr << "Engine error: " << e.what() << '\n';
-                m_state = State::Over;
+                m_state = State::Stop;
                 break;
             }
 
@@ -92,7 +102,7 @@ void MuhlePlayer::update() {
                 best_move = m_engine.done_thinking();
             } catch (const subprocess::Error& e) {
                 std::cerr << "Engine error: " << e.what() << '\n';
-                m_state = State::Over;
+                m_state = State::Stop;
                 break;
             }
 
@@ -112,6 +122,11 @@ void MuhlePlayer::update() {
 
             break;
         }
+        case State::Stop:
+            m_clock.stop();
+            m_state = State::Over;
+
+            break;
         case State::Over:
             break;
     }
@@ -161,13 +176,15 @@ void MuhlePlayer::unload_engine() {
 void MuhlePlayer::main_menu_bar() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Player")) {
-            if (ImGui::MenuItem("Load Engine", nullptr, nullptr, m_state == State::NotStarted || m_state == State::Over)) {
+            const bool active {m_state == State::Ready || m_state == State::HumanThinking || m_state == State::Over};
+
+            if (ImGui::MenuItem("Load Engine", nullptr, nullptr, active)) {
                 load_engine();
             }
-            if (ImGui::MenuItem("Reset Position", nullptr, nullptr, m_state == State::NotStarted || m_state == State::Over)) {
+            if (ImGui::MenuItem("Reset Position", nullptr, nullptr, active)) {
                 reset_position();
             }
-            if (ImGui::BeginMenu("Set Position", m_state == State::NotStarted || m_state == State::Over)) {
+            if (ImGui::BeginMenu("Set Position", active)) {
                 set_position();
 
                 ImGui::EndMenu();
@@ -238,8 +255,9 @@ void MuhlePlayer::reset_position() {
     }
 
     m_board.reset(std::nullopt);
-    m_state = State::NotStarted;
+    m_state = State::Ready;
     m_moves.clear();
+    m_clock.reset();
 }
 
 void MuhlePlayer::set_position() {
@@ -270,14 +288,18 @@ void MuhlePlayer::controls() {
 
         ImGui::Spacing();
 
-        if (m_state != State::NotStarted) {
+        if (m_state != State::Ready) {
             ImGui::BeginDisabled();
             ImGui::Button("Start Game");
             ImGui::EndDisabled();
         } else {
             if (ImGui::Button("Start Game")) {
-                if (m_engine.active()) {
-                    m_state = State::NextTurn;
+                if (m_white == PlayerComputer || m_black == PlayerComputer) {
+                    if (m_engine.active()) {
+                        m_state = State::Start;
+                    }
+                } else {
+                    m_state = State::Start;
                 }
             }
         }
@@ -295,7 +317,7 @@ void MuhlePlayer::controls() {
         ImGui::Text("White");
         ImGui::SameLine();
 
-        if (m_state == State::NotStarted) {
+        if (m_state == State::Ready) {
             ImGui::RadioButton("Human##w", &m_white, PlayerHuman);
             ImGui::SameLine();
             ImGui::RadioButton("Computer##w", &m_white, PlayerComputer);
@@ -308,7 +330,7 @@ void MuhlePlayer::controls() {
         ImGui::Text("Black");
         ImGui::SameLine();
 
-        if (m_state == State::NotStarted) {
+        if (m_state == State::Ready) {
             ImGui::RadioButton("Human##b", &m_black, PlayerHuman);
             ImGui::SameLine();
             ImGui::RadioButton("Computer##b", &m_black, PlayerComputer);
@@ -322,18 +344,38 @@ void MuhlePlayer::controls() {
     ImGui::End();
 }
 
-void MuhlePlayer::moves() {
-    if (ImGui::Begin("Moves")) {
-        if (ImGui::BeginChild("Moves Inner")) {
-            for (std::size_t i {0}; i < m_moves.size(); i++) {
-                if (i % 2 == 0) {
-                    ImGui::Text("%d.", i / 2 + 1);
-                    ImGui::SameLine();
-                    ImGui::Text("%s", m_moves[i].c_str());
-                    ImGui::SameLine();
-                } else {
-                    ImGui::Text("%s", m_moves[i].c_str());
+void MuhlePlayer::game() {
+    if (ImGui::Begin("Game")) {
+        ImGui::Text("b.");
+        ImGui::SameLine();
+        std::apply(ImGui::Text, std::tuple_cat(std::forward_as_tuple("%u:%02u.%02u"), split_time(m_clock.get_black_time())));
+
+        ImGui::Text("w.");
+        ImGui::SameLine();
+        std::apply(ImGui::Text, std::tuple_cat(std::forward_as_tuple("%u:%02u.%02u"), split_time(m_clock.get_white_time())));
+
+        ImGui::Separator();
+
+        if (ImGui::BeginChild("Moves")) {
+            if (ImGui::BeginTable("Moves Table", 3)) {
+                for (std::size_t i {0}; i < m_moves.size(); i++) {
+                    if (i % 2 == 0) {
+                        ImGui::TableNextRow();
+                        ImGui::TableSetColumnIndex(0);
+                        ImGui::Text("%lu.", i / 2 + 1);
+                        ImGui::TableSetColumnIndex(1);
+                        ImGui::Text("%s", m_moves[i].c_str());
+                    } else {
+                        ImGui::TableSetColumnIndex(2);
+                        ImGui::Text("%s", m_moves[i].c_str());
+                    }
                 }
+
+                ImGui::EndTable();
+            }
+
+            if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 6.0f) {
+                ImGui::SetScrollHereY(1.0f);
             }
         }
 
@@ -343,7 +385,7 @@ void MuhlePlayer::moves() {
     ImGui::End();
 }
 
-int MuhlePlayer::get_player_type(board::Player player) const {
+int MuhlePlayer::get_board_player_type() const {
     switch (m_board.get_player()) {
         case board::Player::White:
             return m_white;
@@ -352,4 +394,15 @@ int MuhlePlayer::get_player_type(board::Player player) const {
     }
 
     return {};
+}
+
+std::tuple<unsigned int, unsigned int, unsigned int> MuhlePlayer::split_time(unsigned int time_milliseconds) {
+    const auto result1 {std::div(static_cast<long long>(time_milliseconds), (1000ll * 60ll))};
+    const auto result2 {std::div(result1.rem, 1000ll)};
+
+    const auto minutes {static_cast<unsigned int>(result1.quot)};
+    const auto seconds {static_cast<unsigned int>(result2.quot)};
+    const auto centiseconds {static_cast<unsigned int>(result2.rem / 10)};
+
+    return std::make_tuple(minutes, seconds, centiseconds);
 }
