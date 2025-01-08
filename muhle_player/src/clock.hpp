@@ -14,7 +14,7 @@ namespace clock_ {
         unsigned int get_white_time() const { return m_white_time; }
         unsigned int get_black_time() const { return m_black_time; }
     private:
-        static void start_time(std::chrono::steady_clock::time_point& last_time);
+        static void set_time(std::chrono::steady_clock::time_point& last_time);
         static void update_time(unsigned int& time, std::chrono::steady_clock::time_point& last_time);
 
         bool m_running {false};

@@ -12,9 +12,9 @@ namespace clock_ {
         m_running = true;
 
         if (m_player_white) {
-            start_time(m_white_last_time);
+            set_time(m_white_last_time);
         } else {
-            start_time(m_black_last_time);
+            set_time(m_black_last_time);
         }
     }
 
@@ -38,13 +38,13 @@ namespace clock_ {
         m_player_white = !m_player_white;
 
         if (m_player_white) {
-            start_time(m_white_last_time);
+            set_time(m_white_last_time);
         } else {
-            start_time(m_black_last_time);
+            set_time(m_black_last_time);
         }
     }
 
-    void Clock::start_time(std::chrono::steady_clock::time_point& last_time) {
+    void Clock::set_time(std::chrono::steady_clock::time_point& last_time) {
         last_time = std::chrono::steady_clock::now();
     }
 

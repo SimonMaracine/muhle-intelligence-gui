@@ -79,14 +79,14 @@ void MuhlePlayer::update() {
         case State::ComputerBegin:
             try {
                 m_engine.start_thinking(
-                    std::nullopt,
+                    board::position_to_string(m_board.get_setup_position()),
                     m_moves,
                     std::nullopt,
                     std::nullopt,
                     4,
                     std::nullopt
                 );
-            } catch (const subprocess::Error& e) {
+            } catch (const engine::EngineError& e) {
                 std::cerr << "Engine error: " << e.what() << '\n';
                 m_state = State::Stop;
                 break;
@@ -100,7 +100,7 @@ void MuhlePlayer::update() {
 
             try {
                 best_move = m_engine.done_thinking();
-            } catch (const subprocess::Error& e) {
+            } catch (const engine::EngineError& e) {
                 std::cerr << "Engine error: " << e.what() << '\n';
                 m_state = State::Stop;
                 break;
@@ -139,14 +139,14 @@ void MuhlePlayer::stop() {
 void MuhlePlayer::load_engine(const std::string& file_path) {
     try {
         m_engine.initialize(file_path);
-    } catch (const subprocess::Error& e) {
+    } catch (const engine::EngineError& e) {
         std::cerr << "Could not start engine: " << e.what() << '\n';
         return;
     }
 
     try {
         m_engine.set_debug(true);
-    } catch (const subprocess::Error& e) {
+    } catch (const engine::EngineError& e) {
         std::cerr << "Engine error: " << e.what() << '\n';
         return;
     }
@@ -154,8 +154,9 @@ void MuhlePlayer::load_engine(const std::string& file_path) {
     try {
         m_engine.new_game();
         m_engine.synchronize();
-    } catch (const subprocess::Error& e) {
+    } catch (const engine::EngineError& e) {
         std::cerr << "Engine error: " << e.what() << '\n';
+        return;
     }
 
     m_engine_name = m_engine.get_name();
@@ -168,7 +169,7 @@ void MuhlePlayer::unload_engine() {
 
     try {
         m_engine.uninitialize();
-    } catch (const subprocess::Error& e) {
+    } catch (const engine::EngineError& e) {
         std::cerr << "Could not stop engine: " << e.what() << '\n';
     }
 }
@@ -182,7 +183,7 @@ void MuhlePlayer::main_menu_bar() {
                 load_engine();
             }
             if (ImGui::MenuItem("Reset Position", nullptr, nullptr, active)) {
-                reset_position();
+                reset_position(std::nullopt);
             }
             if (ImGui::BeginMenu("Set Position", active)) {
                 set_position();
@@ -243,28 +244,38 @@ void MuhlePlayer::load_engine_dialog() {
     }
 }
 
-void MuhlePlayer::reset_position() {
+void MuhlePlayer::reset_position(const std::optional<std::string>& position) {
     if (m_engine.active()) {
         try {
             m_engine.new_game();
             m_engine.synchronize();
-        } catch (const subprocess::Error& e) {
+        } catch (const engine::EngineError& e) {
             std::cerr << "Engine error: " << e.what() << '\n';
             return;
         }
     }
 
-    m_board.reset(std::nullopt);
+    try {
+        m_board.reset(position ? std::make_optional(board::position_from_string(*position)) : std::nullopt);
+    } catch (const board::BoardError& e) {
+        std::cerr << "Invalid input: " << e.what() << '\n';
+        return;
+    }
+
     m_state = State::Ready;
     m_moves.clear();
     m_clock.reset();
+
+    if (m_board.get_setup_position().player == board::Player::Black) {
+        m_clock.switch_turn();
+    }
 }
 
 void MuhlePlayer::set_position() {
     char buffer[32] {};
 
     if (ImGui::InputText("string", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
-        // TODO
+        reset_position(buffer);
     }
 }
 
@@ -358,16 +369,37 @@ void MuhlePlayer::game() {
 
         if (ImGui::BeginChild("Moves")) {
             if (ImGui::BeginTable("Moves Table", 3)) {
-                for (std::size_t i {0}; i < m_moves.size(); i++) {
-                    if (i % 2 == 0) {
-                        ImGui::TableNextRow();
-                        ImGui::TableSetColumnIndex(0);
-                        ImGui::Text("%lu.", i / 2 + 1);
-                        ImGui::TableSetColumnIndex(1);
-                        ImGui::Text("%s", m_moves[i].c_str());
-                    } else {
-                        ImGui::TableSetColumnIndex(2);
-                        ImGui::Text("%s", m_moves[i].c_str());
+                if (m_board.get_setup_position().player == board::Player::White) {
+                    for (std::size_t i {0}; i < m_moves.size(); i++) {
+                        if (i % 2 == 0) {
+                            ImGui::TableNextRow();
+                            ImGui::TableSetColumnIndex(0);
+                            ImGui::Text("%lu.", i / 2 + 1);
+                            ImGui::TableSetColumnIndex(1);
+                            ImGui::Text("%s", m_moves[i].c_str());
+                        } else {
+                            ImGui::TableSetColumnIndex(2);
+                            ImGui::Text("%s", m_moves[i].c_str());
+                        }
+                    }
+                } else {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%d.", 1);
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("--/--");
+
+                    for (std::size_t i {0}; i < m_moves.size(); i++) {
+                        if (i % 2 == 0) {
+                            ImGui::TableSetColumnIndex(2);
+                            ImGui::Text("%s", m_moves[i].c_str());
+                        } else {
+                            ImGui::TableNextRow();
+                            ImGui::TableSetColumnIndex(0);
+                            ImGui::Text("%lu.", i / 2 + 2);
+                            ImGui::TableSetColumnIndex(1);
+                            ImGui::Text("%s", m_moves[i].c_str());
+                        }
                     }
                 }
 

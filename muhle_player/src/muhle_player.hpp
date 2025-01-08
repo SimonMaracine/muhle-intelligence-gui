@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <tuple>
+#include <optional>
 
 #include <gui_base/gui_base.hpp>
 
@@ -25,7 +26,7 @@ private:
     void main_menu_bar();
     void load_engine();
     void load_engine_dialog();
-    void reset_position();
+    void reset_position(const std::optional<std::string>& position);
     void set_position();
     void about();
     void notation();

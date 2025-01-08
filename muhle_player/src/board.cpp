@@ -3,6 +3,7 @@
 #include <utility>
 #include <algorithm>
 #include <iterator>
+#include <regex>
 #include <cstddef>
 #include <cmath>
 #include <cstring>
@@ -64,8 +65,7 @@ namespace board {
         else if (string == "d1") return 22;
         else if (string == "g1") return 23;
 
-        assert(false);
-        return {};
+        throw BoardError("Invalid string");
     }
 
     static const char* index_to_string(int index) {
@@ -96,11 +96,10 @@ namespace board {
             case 23: return "g1";
         }
 
-        assert(false);
-        return {};
+        throw BoardError("Invalid index");
     }
 
-    std::vector<std::string> split(const std::string& message, const char* separator) {
+    static std::vector<std::string> split(const std::string& message, const char* separator) {
         std::vector<std::string> tokens;
         std::string buffer {message};
 
@@ -112,6 +111,33 @@ namespace board {
         }
 
         return tokens;
+    }
+
+    static Player parse_player(const std::string& string) {
+        if (string == "w") {
+            return Player::White;
+        } else if (string == "b") {
+            return Player::Black;
+        } else {
+            throw BoardError("Invalid string");
+        }
+    }
+
+    static std::pair<std::vector<int>, Player> parse_pieces(const std::string& string) {
+        const auto player {parse_player(string.substr(0, 1))};
+
+        const auto tokens {split(string.substr(1), ",")};
+        std::vector<int> pieces;
+
+        for (const auto& token : tokens) {
+            if (token.empty()) {
+                continue;
+            }
+
+            pieces.push_back(index_from_string(token));
+        }
+
+        return std::make_pair(pieces, player);
     }
 
     bool Move::operator==(const Move& other) const {
@@ -326,15 +352,14 @@ namespace board {
     }
 
     void Board::reset(const std::optional<Position>& position) {
-        m_board = {};
-        m_player = Player::White;
-        m_game_over = GameOver::None;
-        m_plies = 0;
+        m_position = position ? *position : Position {};
         m_plies_no_advancement = 0;
         m_positions.clear();
 
         m_capture_piece = false;
         m_select_index = -1;
+        m_game_over = GameOver::None;
+        m_setup_position = m_position;
 
         m_legal_moves = generate_moves();
 
@@ -360,9 +385,9 @@ namespace board {
                     break;
             }
 
-            ImGui::Text("player: %s", m_player == Player::White ? "white" : "black");
+            ImGui::Text("player: %s", m_position.player == Player::White ? "white" : "black");
             ImGui::Text("game_over: %s", game_over_string);
-            ImGui::Text("plies: %u", m_plies);
+            ImGui::Text("plies: %u", m_position.plies);
             ImGui::Text("plies_no_advancement: %u", m_plies_no_advancement);
             ImGui::Text("positions: %lu", m_positions.size());
             ImGui::Text("capture_piece: %s", m_capture_piece ? "true" : "false");
@@ -373,8 +398,8 @@ namespace board {
         ImGui::End();
     }
 
-    Position Board::get_position() const {
-        return { m_board, m_player, m_plies };
+    const Position& Board::get_setup_position() const {
+        return m_setup_position;
     }
 
     void Board::play_move(const Move& move) {
@@ -386,26 +411,26 @@ namespace board {
 
         switch (move.type) {
             case MoveType::Place:
-                m_pieces[new_piece_to_place(m_player)].move(node_position(move.place.place_index));
-                m_pieces[new_piece_to_place(m_player)].node_index = move.place.place_index;
+                m_pieces[new_piece_to_place(m_position.player)].move(node_position(move.place.place_index));
+                m_pieces[new_piece_to_place(m_position.player)].node_index = move.place.place_index;
 
-                play_place_move(move.place.place_index);
+                play_place_move(move);
 
                 break;
             case MoveType::PlaceCapture:
-                m_pieces[new_piece_to_place(m_player)].move(node_position(move.place_capture.place_index));
-                m_pieces[new_piece_to_place(m_player)].node_index = move.place_capture.place_index;
+                m_pieces[new_piece_to_place(m_position.player)].move(node_position(move.place_capture.place_index));
+                m_pieces[new_piece_to_place(m_position.player)].node_index = move.place_capture.place_index;
                 m_pieces[piece_on_node(iter->place_capture.capture_index)].move(ImVec2());
                 m_pieces[piece_on_node(iter->place_capture.capture_index)].node_index = -1;
 
-                play_place_capture_move(move.place_capture.place_index, move.place_capture.capture_index);
+                play_place_capture_move(move);
 
                 break;
             case MoveType::Move:
                 m_pieces[piece_on_node(move.move.source_index)].move(node_position(move.move.destination_index));
                 m_pieces[piece_on_node(move.move.source_index)].node_index = move.move.destination_index;
 
-                play_move_move(move.move.source_index, move.move.destination_index);
+                play_move_move(move);
 
                 break;
             case MoveType::MoveCapture:
@@ -414,7 +439,7 @@ namespace board {
                 m_pieces[piece_on_node(iter->move_capture.capture_index)].move(ImVec2());
                 m_pieces[piece_on_node(iter->move_capture.capture_index)].node_index = -1;
 
-                play_move_capture_move(move.move_capture.source_index, move.move_capture.destination_index, move.move_capture.capture_index);
+                play_move_capture_move(move);
 
                 break;
         }
@@ -447,7 +472,7 @@ namespace board {
                 return;
             }
 
-            if (m_plies >= 18) {
+            if (m_position.plies >= 18) {
                 if (m_capture_piece) {
                     try_capture(index);
                 } else {
@@ -466,13 +491,13 @@ namespace board {
 
     void Board::select(int index) {
         if (m_select_index == -1) {
-            if (m_board[index] == static_cast<Node>(m_player)) {
+            if (m_position.board[index] == static_cast<Node>(m_position.player)) {
                 m_select_index = index;
             }
         } else {
             if (index == m_select_index) {
                 m_select_index = -1;
-            } else if (m_board[index] == static_cast<Node>(m_player)) {
+            } else if (m_position.board[index] == static_cast<Node>(m_position.player)) {
                 m_select_index = index;
             }
         }
@@ -485,10 +510,11 @@ namespace board {
             })};
 
             if (iter != m_legal_moves.cend()) {
-                m_pieces[new_piece_to_place(m_player)].move(node_position(iter->place.place_index));
-                m_pieces[new_piece_to_place(m_player)].node_index = iter->place.place_index;
+                m_pieces[new_piece_to_place(m_position.player)].move(node_position(iter->place.place_index));
+                m_pieces[new_piece_to_place(m_position.player)].node_index = iter->place.place_index;
 
-                play_place_move(iter->place.place_index);
+                const Move move {*iter};
+                play_place_move(move);
 
                 return;
             }
@@ -501,8 +527,8 @@ namespace board {
         });
 
         if (!m_candidate_moves.empty()) {
-            m_pieces[new_piece_to_place(m_player)].move(node_position(m_candidate_moves[0].place_capture.place_index));
-            m_pieces[new_piece_to_place(m_player)].node_index = m_candidate_moves[0].place_capture.place_index;
+            m_pieces[new_piece_to_place(m_position.player)].move(node_position(m_candidate_moves[0].place_capture.place_index));
+            m_pieces[new_piece_to_place(m_position.player)].node_index = m_candidate_moves[0].place_capture.place_index;
 
             m_capture_piece = true;
         }
@@ -511,14 +537,19 @@ namespace board {
     void Board::try_move(int source_index, int destination_index) {
         {
             const auto iter {std::find_if(m_legal_moves.cbegin(), m_legal_moves.cend(), [=](const Move& move) {
-                return move.type == MoveType::Move && move.move.source_index == source_index && move.move.destination_index == destination_index;
+                return (
+                    move.type == MoveType::Move &&
+                    move.move.source_index == source_index &&
+                    move.move.destination_index == destination_index
+                );
             })};
 
             if (iter != m_legal_moves.cend()) {
                 m_pieces[piece_on_node(iter->move.source_index)].move(node_position(iter->move.destination_index));
                 m_pieces[piece_on_node(iter->move.source_index)].node_index = iter->move.destination_index;
 
-                play_move_move(iter->move.source_index, iter->move.destination_index);
+                const Move move {*iter};
+                play_move_move(move);
 
                 return;
             }
@@ -527,7 +558,11 @@ namespace board {
         m_candidate_moves.clear();
 
         std::copy_if(m_legal_moves.cbegin(), m_legal_moves.cend(), std::back_inserter(m_candidate_moves), [=](const Move& move) {
-            return move.type == MoveType::MoveCapture && move.move_capture.source_index == source_index && move.move_capture.destination_index == destination_index;
+            return (
+                move.type == MoveType::MoveCapture &&
+                move.move_capture.source_index == source_index &&
+                move.move_capture.destination_index == destination_index
+            );
         });
 
         if (!m_candidate_moves.empty()) {
@@ -556,83 +591,91 @@ namespace board {
         }
 
         switch (iter->type) {
-            case MoveType::PlaceCapture:
+            case MoveType::PlaceCapture: {
                 m_pieces[piece_on_node(iter->place_capture.capture_index)].move(ImVec2());
                 m_pieces[piece_on_node(iter->place_capture.capture_index)].node_index = -1;
 
-                play_place_capture_move(iter->place_capture.place_index, iter->place_capture.capture_index);
+                const Move move {*iter};
+                play_place_capture_move(move);
 
                 break;
-            case MoveType::MoveCapture:
+            }
+            case MoveType::MoveCapture: {
                 m_pieces[piece_on_node(iter->move_capture.capture_index)].move(ImVec2());
                 m_pieces[piece_on_node(iter->move_capture.capture_index)].node_index = -1;
 
-                play_move_capture_move(iter->move_capture.source_index, iter->move_capture.destination_index, iter->move_capture.capture_index);
+                const Move move {*iter};
+                play_move_capture_move(move);
 
                 break;
+            }
             default:
                 assert(false);
                 break;
         }
     }
 
-    void Board::play_place_move(int place_index) {
-        assert(m_board[place_index] == Node::None);
+    void Board::play_place_move(const Move& move) {
+        assert(move.type == MoveType::Place);
+        assert(m_position.board[move.place.place_index] == Node::None);
 
-        m_board[place_index] = static_cast<Node>(m_player);
+        m_position.board[move.place.place_index] = static_cast<Node>(m_position.player);
 
         finish_turn();
         check_legal_moves();
 
-        m_move_callback(Move::create_place(place_index));
+        m_move_callback(move);
     }
 
-    void Board::play_place_capture_move(int place_index, int capture_index) {
-        assert(m_board[place_index] == Node::None);
-        assert(m_board[capture_index] != Node::None);
+    void Board::play_place_capture_move(const Move& move) {
+        assert(move.type == MoveType::PlaceCapture);
+        assert(m_position.board[move.place_capture.place_index] == Node::None);
+        assert(m_position.board[move.place_capture.capture_index] != Node::None);
 
-        m_board[place_index] = static_cast<Node>(m_player);
-        m_board[capture_index] = Node::None;
+        m_position.board[move.place_capture.place_index] = static_cast<Node>(m_position.player);
+        m_position.board[move.place_capture.capture_index] = Node::None;
 
         finish_turn();
         check_material();
         check_legal_moves();
 
-        m_move_callback(Move::create_place_capture(place_index, capture_index));
+        m_move_callback(move);
     }
 
-    void Board::play_move_move(int source_index, int destination_index) {
-        assert(m_board[source_index] != Node::None);
-        assert(m_board[destination_index] == Node::None);
+    void Board::play_move_move(const Move& move) {
+        assert(move.type == MoveType::Move);
+        assert(m_position.board[move.move.source_index] != Node::None);
+        assert(m_position.board[move.move.destination_index] == Node::None);
 
-        std::swap(m_board[source_index], m_board[destination_index]);
+        std::swap(m_position.board[move.move.source_index], m_position.board[move.move.destination_index]);
 
         finish_turn(false);
         check_legal_moves();
         check_threefold_repetition();
         check_fifty_move_rule();
 
-        m_move_callback(Move::create_move(source_index, destination_index));
+        m_move_callback(move);
     }
 
-    void Board::play_move_capture_move(int source_index, int destination_index, int capture_index) {
-        assert(m_board[source_index] != Node::None);
-        assert(m_board[destination_index] == Node::None);
-        assert(m_board[capture_index] != Node::None);
+    void Board::play_move_capture_move(const Move& move) {
+        assert(move.type == MoveType::MoveCapture);
+        assert(m_position.board[move.move_capture.source_index] != Node::None);
+        assert(m_position.board[move.move_capture.destination_index] == Node::None);
+        assert(m_position.board[move.move_capture.capture_index] != Node::None);
 
-        std::swap(m_board[source_index], m_board[destination_index]);
-        m_board[capture_index] = Node::None;
+        std::swap(m_position.board[move.move_capture.source_index], m_position.board[move.move_capture.destination_index]);
+        m_position.board[move.move_capture.capture_index] = Node::None;
 
         finish_turn();
         check_material();
         check_legal_moves();
 
-        m_move_callback(Move::create_move_capture(source_index, destination_index, capture_index));
+        m_move_callback(move);
     }
 
     void Board::finish_turn(bool advancement) {
-        m_player = opponent(m_player);
-        m_plies++;
+        m_position.player = opponent(m_position.player);
+        m_position.plies++;
         m_legal_moves = generate_moves();
 
         if (advancement) {
@@ -643,7 +686,7 @@ namespace board {
         }
 
         // Store the current position anyway
-        m_positions.push_back({m_board, m_player, m_plies});
+        m_positions.push_back(m_position);
 
         m_capture_piece = false;
         m_select_index = -1;
@@ -654,12 +697,12 @@ namespace board {
             return;
         }
 
-        if (m_plies < 18) {
+        if (m_position.plies < 18) {
             return;
         }
 
-        if (count_pieces(m_board, m_player) < 3) {
-            m_game_over = static_cast<GameOver>(opponent(m_player));
+        if (count_pieces(m_position.board, m_position.player) < 3) {
+            m_game_over = static_cast<GameOver>(opponent(m_position.player));
         }
     }
 
@@ -669,7 +712,7 @@ namespace board {
         }
 
         if (m_legal_moves.empty()) {
-            m_game_over = static_cast<GameOver>(opponent(m_player));
+            m_game_over = static_cast<GameOver>(opponent(m_position.player));
         }
     }
 
@@ -688,7 +731,7 @@ namespace board {
             return;
         }
 
-        const auto count {std::count(m_positions.cbegin(), m_positions.cend(), Position {m_board, m_player, m_plies})};
+        const auto count {std::count(m_positions.cbegin(), m_positions.cend(), m_position)};
 
         assert(count >= 1);
 
@@ -704,6 +747,21 @@ namespace board {
 
         for (int i {9}; i < 18; i++) {
             m_pieces[i] = PieceObj(Player::Black);
+        }
+
+        for (int i {0}; i < 24; i++) {
+            switch (m_position.board[i]) {
+                case Node::None:
+                    break;
+                case Node::White:
+                    m_pieces[new_piece_to_place(Player::White)].move(node_position(i));
+                    m_pieces[new_piece_to_place(Player::White)].node_index = i;
+                    break;
+                case Node::Black:
+                    m_pieces[new_piece_to_place(Player::Black)].move(node_position(i));
+                    m_pieces[new_piece_to_place(Player::Black)].node_index = i;
+                    break;
+            }
         }
     }
 
@@ -755,15 +813,15 @@ namespace board {
 
     std::vector<Move> Board::generate_moves() const {
         std::vector<Move> moves;
-        Board_ local_board {m_board};
+        Board_ local_board {m_position.board};
 
-        if (m_plies < 18) {
-            generate_moves_phase1(local_board, moves, m_player);
+        if (m_position.plies < 18) {
+            generate_moves_phase1(local_board, moves, m_position.player);
         } else {
-            if (count_pieces(local_board, m_player) == 3) {
-                generate_moves_phase3(local_board, moves, m_player);
+            if (count_pieces(local_board, m_position.player) == 3) {
+                generate_moves_phase3(local_board, moves, m_position.player);
             } else {
-                generate_moves_phase2(local_board, moves, m_player);
+                generate_moves_phase2(local_board, moves, m_position.player);
             }
         }
 
@@ -1131,12 +1189,9 @@ namespace board {
 
                 return Move::create_move_capture(source_index, destination_index, capture_index);
             }
-            default:
-                assert(false);
-                break;
         }
 
-        return {};
+        throw BoardError("Invalid move string");
     }
 
     std::string move_to_string(const Move& move) {
@@ -1169,7 +1224,54 @@ namespace board {
     }
 
     Position position_from_string(const std::string& string) {
+        const std::regex re {R"(^(w|b):(w|b)([a-g][1-7])?(,[a-g][1-7])*:(w|b)([a-g][1-7])?(,[a-g][1-7])*:[0-9]{1,3}$)"};
 
+        if (!std::regex_match(string, re)) {
+            throw BoardError("Invalid position string");
+        }
+
+        const auto tokens {split(string, ":")};
+
+        assert(tokens.size() == 4);
+
+        const auto player {parse_player(tokens[0])};
+        const auto pieces1 {parse_pieces(tokens[1])};
+        const auto pieces2 {parse_pieces(tokens[2])};
+        int turns {};
+
+        try {
+            turns = std::stoi(tokens[3]);
+        } catch (...) {
+            throw BoardError("Invalid position string");
+        }
+
+        if (pieces1.second == pieces2.second) {
+            throw BoardError("Invalid position string");
+        }
+
+        if (turns < 1) {
+            throw BoardError("Invalid position string");
+        }
+
+        Position position;
+
+        position.player = player;
+
+        for (const int index : pieces1.first) {
+            assert(index >= 0 && index < 24);
+
+            position.board[index] = static_cast<Node>(pieces1.second);
+        }
+
+        for (const int index : pieces2.first) {
+            assert(index >= 0 && index < 24);
+
+            position.board[index] = static_cast<Node>(pieces2.second);
+        }
+
+        position.plies = (turns - 1) * 2 + static_cast<unsigned int>(player == Player::Black);
+
+        return position;
     }
 
     std::string position_to_string(const Position& position) {
@@ -1191,6 +1293,11 @@ namespace board {
             }
 
             result += index_to_string(i);
+            result += ',';
+        }
+
+        if (result.back() == ',') {
+            result.pop_back();
         }
 
         result += ":b";
@@ -1200,10 +1307,15 @@ namespace board {
             }
 
             result += index_to_string(i);
+            result += ',';
+        }
+
+        if (result.back() == ',') {
+            result.pop_back();
         }
 
         result += ':';
-        result += std::to_string(position.plies);
+        result += std::to_string(position.plies / 2 + 1);
 
         return result;
     }

@@ -72,8 +72,8 @@ namespace board {
 
     struct Position {
         Board_ board {};
-        Player player {};
-        unsigned int plies {};
+        Player player {Player::White};
+        unsigned int plies {0};
 
         bool operator==(const Position& other) const {
             return board == other.board && player == other.player && plies >= 18 && other.plies >= 18;
@@ -105,14 +105,14 @@ namespace board {
         Board() = default;
         explicit Board(std::function<void(const Move&)>&& move_callback);
 
-        Player get_player() const { return m_player; }
+        Player get_player() const { return m_position.player; }
         GameOver get_game_over() const { return m_game_over; }
 
         void update(bool user_input = false);
         void reset(const std::optional<Position>& position);
         void debug() const;
 
-        Position get_position() const;
+        const Position& get_setup_position() const;
         void play_move(const Move& move);
         void timeout(Player player);
     private:
@@ -124,10 +124,10 @@ namespace board {
         void try_capture(int capture_index);
 
         // These just change the state
-        void play_place_move(int place_index);
-        void play_place_capture_move(int place_index, int capture_index);
-        void play_move_move(int source_index, int destination_index);
-        void play_move_capture_move(int source_index, int destination_index, int capture_index);
+        void play_place_move(const Move& move);
+        void play_place_capture_move(const Move& move);
+        void play_move_move(const Move& move);
+        void play_move_capture_move(const Move& move);
 
         void finish_turn(bool advancement = true);
         void check_material();
@@ -158,11 +158,8 @@ namespace board {
         static Player opponent(Player player);
 
         // Game data
-        Board_ m_board {};
-        Player m_player {Player::White};
-        unsigned int m_plies {};
+        Position m_position;
         unsigned int m_plies_no_advancement {};
-        GameOver m_game_over {GameOver::None};
         std::vector<Position> m_positions;
 
         // GUI data
@@ -170,10 +167,12 @@ namespace board {
         int m_select_index {-1};
         float m_board_unit {};
         ImVec2 m_board_offset;
+        GameOver m_game_over {GameOver::None};
         std::array<PieceObj, 18> m_pieces;
         std::vector<Move> m_legal_moves;
         std::vector<Move> m_candidate_moves;
         std::function<void(const Move&)> m_move_callback;
+        Position m_setup_position;
     };
 
     struct BoardError : std::runtime_error {
