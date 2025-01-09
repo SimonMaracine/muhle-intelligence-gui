@@ -61,6 +61,7 @@ private:
     } m_state {State::Ready};
 
     std::vector<std::string> m_moves;
-
+    std::string m_score;
+    std::string m_pv;
     clock_::Clock m_clock;
 };

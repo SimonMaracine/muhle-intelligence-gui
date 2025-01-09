@@ -2,8 +2,8 @@
 
 #include <iostream>
 #include <filesystem>
-#include <chrono>
 #include <stdexcept>
+#include <numeric>
 #include <cstdlib>
 
 #include <gui_base/gui_base.hpp>
@@ -36,18 +36,26 @@ void MuhlePlayer::start() {
         }
     });
 
-    m_engine.set_info_callback([](const engine::Engine::Info& info, void*) {
+    m_engine.set_info_callback([](const engine::Engine::Info& info, void* pointer) {
+        MuhlePlayer* self {static_cast<MuhlePlayer*>(pointer)};
+
         if (info.score) {
             switch (info.score->index()) {
                 case 0:
-                    std::cout << "eval " << std::get<0>(*info.score).value << '\n';
+                    self->m_score = "eval " + std::to_string(std::get<0>(*info.score).value);
                     break;
                 case 1:
-                    std::cout << "win " << std::get<1>(*info.score).value << '\n';
+                    self->m_score = "win " + std::to_string(std::get<1>(*info.score).value);
                     break;
             }
         }
-    }, nullptr);
+
+        if (info.pv) {
+            self->m_pv = std::accumulate(++info.pv->cbegin(), info.pv->cend(), *info.pv->cbegin(), [](std::string r, const std::string& move) {
+                return std::move(r) + " " + move;
+            });
+        }
+    }, this);
 }
 
 void MuhlePlayer::update() {
@@ -277,6 +285,8 @@ void MuhlePlayer::reset_position(const std::optional<std::string>& position) {
 
     m_state = State::Ready;
     m_moves.clear();
+    m_score.clear();
+    m_pv.clear();
     m_clock.reset();
 
     if (m_board.get_setup_position().player == board::Player::Black) {
@@ -377,6 +387,11 @@ void MuhlePlayer::game() {
         ImGui::Text("w.");
         ImGui::SameLine();
         std::apply(ImGui::Text, std::tuple_cat(std::forward_as_tuple("%u:%02u.%02u"), split_time(m_clock.get_white_time())));
+
+        ImGui::Separator();
+
+        ImGui::Text("%s", m_score.c_str());
+        ImGui::TextWrapped("%s", m_pv.c_str());
 
         ImGui::Separator();
 
