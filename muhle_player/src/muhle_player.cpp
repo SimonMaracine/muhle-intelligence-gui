@@ -35,6 +35,19 @@ void MuhlePlayer::start() {
                 break;
         }
     });
+
+    m_engine.set_info_callback([](const engine::Engine::Info& info, void*) {
+        if (info.score) {
+            switch (info.score->index()) {
+                case 0:
+                    std::cout << "eval " << std::get<0>(*info.score).value << '\n';
+                    break;
+                case 1:
+                    std::cout << "win " << std::get<1>(*info.score).value << '\n';
+                    break;
+            }
+        }
+    }, nullptr);
 }
 
 void MuhlePlayer::update() {
@@ -83,8 +96,8 @@ void MuhlePlayer::update() {
                     m_moves,
                     std::nullopt,
                     std::nullopt,
-                    4,
-                    std::nullopt
+                    std::nullopt,
+                    1000
                 );
             } catch (const engine::EngineError& e) {
                 std::cerr << "Engine error: " << e.what() << '\n';

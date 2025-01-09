@@ -5,6 +5,7 @@
 #include <vector>
 #include <optional>
 #include <functional>
+#include <variant>
 
 #include "subprocess.hpp"
 
@@ -12,7 +13,16 @@ namespace engine {
     class Engine {
     public:
         struct Info {
+            struct ScoreEval { int value; };
+            struct ScoreWin { int value; };
 
+            using Score = std::variant<ScoreEval, ScoreWin>;
+
+            std::optional<unsigned int> depth;
+            std::optional<unsigned int> time;
+            std::optional<unsigned int> nodes;
+            std::optional<Score> score;
+            std::optional<std::vector<std::string>> pv;
         };
 
         void initialize(const std::string& file_path);
@@ -39,6 +49,9 @@ namespace engine {
         void try_terminate();
         static std::vector<std::string> parse_message(const std::string& message);
         static Info parse_info(const std::vector<std::string>& tokens);
+        static std::optional<unsigned int> parse_info_ui(const std::vector<std::string>& tokens, const std::string& name);
+        static std::optional<Info::Score> parse_info_score(const std::vector<std::string>& tokens);
+        static std::optional<std::vector<std::string>> parse_info_pv(const std::vector<std::string>& tokens);
         static bool token_available(const std::vector<std::string>& tokens, std::size_t index);
 
         subprocess::Subprocess m_subprocess;

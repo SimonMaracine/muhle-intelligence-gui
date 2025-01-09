@@ -153,7 +153,7 @@ namespace engine {
             const auto moves_str {
                 !moves.empty()
                 ?
-                " moves " + std::accumulate(std::next(moves.cbegin()), moves.cend(), *moves.cbegin(), [](std::string r, const std::string& move) {
+                " moves " + std::accumulate(++moves.cbegin(), moves.cend(), *moves.cbegin(), [](std::string r, const std::string& move) {
                     return std::move(r) + " " + move;
                 })
                 :
@@ -271,7 +271,80 @@ namespace engine {
     }
 
     Engine::Info Engine::parse_info(const std::vector<std::string>& tokens) {
-        return {};  // TODO
+        Info info;
+        info.depth = parse_info_ui(tokens, "depth");
+        info.time = parse_info_ui(tokens, "time");
+        info.nodes = parse_info_ui(tokens, "nodes");
+        info.score = parse_info_score(tokens);
+        info.pv = parse_info_pv(tokens);
+
+        return info;
+    }
+
+    std::optional<unsigned int> Engine::parse_info_ui(const std::vector<std::string>& tokens, const std::string& name) {
+        auto iter {std::find(tokens.cbegin(), tokens.cend(), name)};
+
+        if (iter == tokens.cend()) {
+            return std::nullopt;
+        }
+
+        if (++iter != tokens.cend()) {
+            try {
+                return std::make_optional(std::stoul(*iter));
+            } catch (...) {
+                return std::nullopt;
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    std::optional<Engine::Info::Score> Engine::parse_info_score(const std::vector<std::string>& tokens) {
+        auto iter {std::find(tokens.cbegin(), tokens.cend(), "score")};
+
+        if (iter == tokens.cend()) {
+            return std::nullopt;
+        }
+
+        if (++iter == tokens.cend()) {
+            return std::nullopt;
+        }
+
+        if (*iter == "eval") {
+            if (++iter != tokens.cend()) {
+                try {
+                    return std::make_optional(Info::ScoreEval {std::stoi(*iter)});
+                } catch (...) {
+                    return std::nullopt;
+                }
+            }
+        } else if (*iter == "win") {
+            if (++iter != tokens.cend()) {
+                try {
+                    return std::make_optional(Info::ScoreWin {std::stoi(*iter)});
+                } catch (...) {
+                    return std::nullopt;
+                }
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    std::optional<std::vector<std::string>> Engine::parse_info_pv(const std::vector<std::string>& tokens) {
+        auto iter {std::find(tokens.cbegin(), tokens.cend(), "pv")};
+
+        if (iter == tokens.cend()) {
+            return std::nullopt;
+        }
+
+        std::vector<std::string> pv;
+
+        while (++iter != tokens.cend()) {
+            pv.push_back(*iter);
+        }
+
+        return std::make_optional(pv);
     }
 
     bool Engine::token_available(const std::vector<std::string>& tokens, std::size_t index) {

@@ -1237,10 +1237,10 @@ namespace board {
         const auto player {parse_player(tokens[0])};
         const auto pieces1 {parse_pieces(tokens[1])};
         const auto pieces2 {parse_pieces(tokens[2])};
-        int turns {};
+        unsigned long turns {};
 
         try {
-            turns = std::stoi(tokens[3]);
+            turns = std::stoul(tokens[3]);
         } catch (...) {
             throw BoardError("Invalid position string");
         }
@@ -1269,7 +1269,7 @@ namespace board {
             position.board[index] = static_cast<Node>(pieces2.second);
         }
 
-        position.plies = (turns - 1) * 2 + static_cast<unsigned int>(player == Player::Black);
+        position.plies = (static_cast<unsigned int>(turns) - 1) * 2 + static_cast<unsigned int>(player == Player::Black);
 
         return position;
     }
