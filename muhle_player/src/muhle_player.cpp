@@ -107,10 +107,10 @@ void MuhlePlayer::update() {
                 m_engine.start_thinking(
                     board::position_to_string(m_board.get_setup_position()),
                     m_moves,
+                    m_clock.get_white_time(),
+                    m_clock.get_black_time(),
                     std::nullopt,
-                    std::nullopt,
-                    std::nullopt,
-                    100
+                    std::nullopt
                 );
             } catch (const engine::EngineError& e) {
                 std::cerr << "Engine error: " << e.what() << '\n';
