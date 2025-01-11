@@ -20,8 +20,7 @@ void MuhlePlayer::start() {
         m_clock.switch_turn();
 
         if (m_board.get_game_over() != board::GameOver::None) {
-            // TODO check engine
-
+            assert_engine_game_over();
             m_state = State::Stop;
             return;
         }
@@ -35,6 +34,8 @@ void MuhlePlayer::start() {
                 break;
         }
     });
+
+    m_engine.set_log_output(true);
 
     m_engine.set_info_callback([](const engine::Engine::Info& info, void* pointer) {
         MuhlePlayer* self {static_cast<MuhlePlayer*>(pointer)};
@@ -51,9 +52,13 @@ void MuhlePlayer::start() {
         }
 
         if (info.pv) {
-            self->m_pv = std::accumulate(++info.pv->cbegin(), info.pv->cend(), *info.pv->cbegin(), [](std::string r, const std::string& move) {
-                return std::move(r) + " " + move;
-            });
+            if (info.pv->empty()) {
+                self->m_pv.clear();
+            } else {
+                self->m_pv = std::accumulate(++info.pv->cbegin(), info.pv->cend(), *info.pv->cbegin(), [](std::string r, const std::string& move) {
+                    return std::move(r) + " " + move;
+                });
+            }
         }
     }, this);
 }
@@ -105,7 +110,7 @@ void MuhlePlayer::update() {
                     std::nullopt,
                     std::nullopt,
                     std::nullopt,
-                    1000
+                    100
                 );
             } catch (const engine::EngineError& e) {
                 std::cerr << "Engine error: " << e.what() << '\n';
@@ -454,6 +459,36 @@ int MuhlePlayer::get_board_player_type() const {
     }
 
     return {};
+}
+
+void MuhlePlayer::assert_engine_game_over() {
+    try {
+        m_engine.start_thinking(
+            board::position_to_string(m_board.get_setup_position()),
+            m_moves,
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            100
+        );
+
+        while (true) {
+            const auto best_move {m_engine.done_thinking()};
+
+            if (!best_move) {
+                continue;
+            }
+
+            if (*best_move != "none") {
+                throw std::runtime_error("The GUI calls game over, but the engine doesn't agree");
+            }
+
+            break;
+        }
+    } catch (const engine::EngineError& e) {
+        std::cerr << "Engine error: " << e.what() << '\n';
+        m_state = State::Stop;
+    }
 }
 
 std::tuple<unsigned int, unsigned int, unsigned int> MuhlePlayer::split_time(unsigned int time_milliseconds) {

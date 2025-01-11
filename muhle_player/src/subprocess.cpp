@@ -1,6 +1,5 @@
 #include "subprocess.hpp"
 
-#include <string_view>
 #include <utility>
 #include <cstddef>
 #include <cstdlib>
@@ -15,18 +14,6 @@
 using namespace std::string_literals;
 
 namespace subprocess {
-    static bool newline_in_buffer(std::string_view buffer, std::size_t& bytes_up_to_newline) noexcept {
-        for (std::size_t i {0}; i < buffer.size(); i++) {
-            if (buffer[i] == '\n') {
-                bytes_up_to_newline = i + 1;  // Including newline
-                return true;
-            }
-        }
-
-        bytes_up_to_newline = 0;
-        return false;
-    }
-
     Subprocess::Subprocess(const std::string& file_path) {
         int fd_r[2] {};
         if (pipe(fd_r) < 0) {
@@ -84,7 +71,8 @@ namespace subprocess {
         m_input = other.m_input;
         m_output = other.m_output;
         m_child_pid = other.m_child_pid;
-        m_buffered = std::move(other.m_buffered);
+        m_read_buffer = std::move(other.m_read_buffer);
+        m_reading_queue = std::move(other.m_reading_queue);
 
         other.m_child_pid = -1;
     }
@@ -97,24 +85,19 @@ namespace subprocess {
         m_input = other.m_input;
         m_output = other.m_output;
         m_child_pid = other.m_child_pid;
-        m_buffered = std::move(other.m_buffered);
+        m_read_buffer = std::move(other.m_read_buffer);
+        m_reading_queue = std::move(other.m_reading_queue);
 
         other.m_child_pid = -1;
 
         return *this;
     }
 
-    std::optional<std::string> Subprocess::read() const {
-        {
-            std::size_t bytes_up_to_newline {};
-
-            if (newline_in_buffer(m_buffered, bytes_up_to_newline)) {
-                const auto current {std::string(m_buffered, 0, bytes_up_to_newline)};
-
-                m_buffered = std::string(m_buffered, bytes_up_to_newline, m_buffered.size() - bytes_up_to_newline);
-
-                return std::make_optional(current);
-            }
+    std::optional<std::string> Subprocess::readl() const {
+        if (!m_reading_queue.empty()) {
+            const auto result {m_reading_queue.front()};
+            m_reading_queue.pop_front();
+            return std::make_optional(result);
         }
 
         fd_set set;
@@ -133,43 +116,40 @@ namespace subprocess {
             return std::nullopt;
         }
 
-        // 1.  Read a bunch of bytes
-        // 2.  Scan for newline in buffer
-        // 3.  If no bytes read, save the buffer in the buffered buffer and return
-        // 4a. If a newline is found, concatenate the buffer up to the newline with the contents of the buffered buffer and return it as the result
-        // 4b. Save the rest of the extracted characters (from newline + 1 up to the end) into the buffered buffer
-        // 5.  If a newline is not found, save the buffer and goto #1
+        char buffer[256] {};
+        const ssize_t bytes {::read(m_input, buffer, sizeof(buffer))};
 
-        std::string current;
+        if (bytes < 0) {
+            throw Error("Could not read from file: "s + strerror(errno));
+        }
 
-        while (true) {
-            char buffer[256] {};
-            const ssize_t bytes {::read(m_input, buffer, sizeof(buffer))};
+        if (bytes == 0) {
+            return std::nullopt;
+        }
 
-            if (bytes < 0) {
-                m_buffered += current;
+        m_read_buffer += std::string(buffer, bytes);
 
-                throw Error("Could not read from file: "s + strerror(errno));
+        if (m_read_buffer.find('\n') == m_read_buffer.npos) {
+            return std::nullopt;
+        }
+
+        std::size_t last_index {0};
+
+        for (std::size_t i {0}; i < m_read_buffer.size(); i++) {
+            if (m_read_buffer[i] == '\n') {
+                m_reading_queue.push_back(m_read_buffer.substr(last_index, i - last_index));
+                last_index = i + 1;
             }
+        }
 
-            if (bytes == 0) {
-                m_buffered += current;
+        const auto remainder {m_read_buffer.substr(last_index)};
+        m_read_buffer.clear();
+        m_read_buffer += remainder;
 
-                return std::nullopt;
-            }
-
-            std::size_t bytes_up_to_newline {};
-
-            if (newline_in_buffer(buffer, bytes_up_to_newline)) {
-                current += std::string(buffer, 0, bytes_up_to_newline);
-
-                return std::make_optional(
-                    std::exchange(m_buffered, std::string(buffer, bytes_up_to_newline, static_cast<std::size_t>(bytes)))
-                    + current
-                );
-            } else {
-                current += buffer;
-            }
+        {
+            const auto result {m_reading_queue.front()};
+            m_reading_queue.pop_front();
+            return std::make_optional(result);
         }
     }
 

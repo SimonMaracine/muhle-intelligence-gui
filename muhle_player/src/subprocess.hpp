@@ -3,6 +3,7 @@
 #include <string>
 #include <optional>
 #include <stdexcept>
+#include <deque>
 
 namespace subprocess {
     class Subprocess {
@@ -16,7 +17,7 @@ namespace subprocess {
         Subprocess(Subprocess&& other) noexcept;
         Subprocess& operator=(Subprocess&& other) noexcept;
 
-        std::optional<std::string> read() const;
+        std::optional<std::string> readl() const;
         void write(const std::string& data) const;
         void wait();
         void terminate();
@@ -26,7 +27,8 @@ namespace subprocess {
         int m_output {-1};  // Write to
         int m_child_pid {-1};
 
-        mutable std::string m_buffered;
+        mutable std::string m_read_buffer;
+        mutable std::deque<std::string> m_reading_queue;
     };
 
     struct Error : public std::runtime_error {

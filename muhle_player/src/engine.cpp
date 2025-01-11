@@ -37,7 +37,7 @@ namespace engine {
             std::optional<std::string> message;
 
             try {
-                message = m_subprocess.read();
+                message = m_subprocess.readl();
             } catch (const subprocess::Error& e) {
                 try_terminate();
                 throw EngineError("Could not read from subprocess: "s + e.what());
@@ -47,7 +47,12 @@ namespace engine {
                 continue;
             }
 
-            const auto tokens {parse_message(message->substr(0, message->size() - 1))};
+            if (m_log_output) {
+                m_log_output_stream << *message << '\n';
+                m_log_output_stream.flush();
+            }
+
+            const auto tokens {parse_message(*message)};
 
             if (tokens.empty()) {
                 continue;
@@ -101,7 +106,7 @@ namespace engine {
             std::optional<std::string> message;
 
             try {
-                message = m_subprocess.read();
+                message = m_subprocess.readl();
             } catch (const subprocess::Error& e) {
                 try_terminate();
                 throw EngineError("Could not read from subprocess: "s + e.what());
@@ -111,7 +116,12 @@ namespace engine {
                 continue;
             }
 
-            const auto tokens {parse_message(message->substr(0, message->size() - 1))};
+            if (m_log_output) {
+                m_log_output_stream << *message << '\n';
+                m_log_output_stream.flush();
+            }
+
+            const auto tokens {parse_message(*message)};
 
             if (tokens.empty()) {
                 continue;
@@ -194,7 +204,7 @@ namespace engine {
         std::optional<std::string> message;
 
         try {
-            message = m_subprocess.read();
+            message = m_subprocess.readl();
         } catch (const subprocess::Error& e) {
             try_terminate();
             throw EngineError("Could not read from subprocess: "s + e.what());
@@ -204,7 +214,12 @@ namespace engine {
             return std::nullopt;
         }
 
-        const auto tokens {parse_message(message->substr(0, message->size() - 1))};
+        if (m_log_output) {
+            m_log_output_stream << *message << '\n';
+            m_log_output_stream.flush();
+        }
+
+        const auto tokens {parse_message(*message)};
 
         if (tokens.empty()) {
             return std::nullopt;
@@ -223,11 +238,6 @@ namespace engine {
         return std::nullopt;
     }
 
-    void Engine::set_info_callback(std::function<void(const Info&, void*)>&& info_callback, void* info_callback_pointer) {
-        m_info_callback = std::move(info_callback);
-        m_info_callback_pointer = info_callback_pointer;
-    }
-
     void Engine::uninitialize() {
         m_name.clear();
 
@@ -244,6 +254,21 @@ namespace engine {
             try_terminate();
             throw EngineError("Could not wait for subprocess: "s + e.what());
         }
+    }
+
+    void Engine::set_log_output(bool log_output) {
+        m_log_output = log_output;
+
+        m_log_output_stream.open("muhle_player.log", std::ios::app);
+
+        if (!m_log_output_stream) {
+            m_log_output = false;
+        }
+    }
+
+    void Engine::set_info_callback(std::function<void(const Info&, void*)>&& info_callback, void* info_callback_pointer) {
+        m_info_callback = std::move(info_callback);
+        m_info_callback_pointer = info_callback_pointer;
     }
 
     void Engine::try_terminate() {

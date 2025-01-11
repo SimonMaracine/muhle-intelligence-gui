@@ -35,6 +35,7 @@ private:
     void game();
 
     int get_board_player_type() const;
+    void assert_engine_game_over();
     static std::tuple<unsigned int, unsigned int, unsigned int> split_time(unsigned int time_milliseconds);
 
     enum PlayerType {

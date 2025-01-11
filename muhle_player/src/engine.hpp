@@ -6,6 +6,7 @@
 #include <optional>
 #include <functional>
 #include <variant>
+#include <fstream>
 
 #include "subprocess.hpp"
 
@@ -40,9 +41,10 @@ namespace engine {
         );
         void stop_thinking();
         std::optional<std::string> done_thinking();
-        void set_info_callback(std::function<void(const Info&, void*)>&& info_callback, void* info_callback_pointer);
         void uninitialize();
 
+        void set_log_output(bool log_output);
+        void set_info_callback(std::function<void(const Info&, void*)>&& info_callback, void* info_callback_pointer);
         bool active() const { return m_subprocess.active(); }
         const std::string& get_name() const { return m_name; }
     private:
@@ -58,6 +60,8 @@ namespace engine {
         std::string m_name;
         std::function<void(const Info&, void*)> m_info_callback;
         void* m_info_callback_pointer {};
+        bool m_log_output {false};
+        std::ofstream m_log_output_stream;
     };
 
     struct EngineError : std::runtime_error {
