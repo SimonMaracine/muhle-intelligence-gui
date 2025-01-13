@@ -1,193 +1,107 @@
 #include "subprocess.hpp"
 
-#include <utility>
-#include <cstddef>
-#include <cstdlib>
-#include <cstring>
-#include <csignal>
-#include <cerrno>
-
-#include <unistd.h>
-#include <sys/wait.h>
-#include <sys/select.h>
-
-using namespace std::string_literals;
+#include <cassert>
 
 namespace subprocess {
-    Subprocess::Subprocess(const std::string& file_path) {
-        int fd_r[2] {};
-        if (pipe(fd_r) < 0) {
-            throw Error("Could not create reading pipe"s + strerror(errno));
-        }
+    Subprocess::Subprocess()
+        : m_out(m_context), m_in(m_context), m_process(m_context) {}
 
-        int fd_w[2] {};
-        if (pipe(fd_w) < 0) {
-            throw Error("Could not create writing pipe"s + strerror(errno));
-        }
-
-        const pid_t pid {fork()};
-
-        if (pid < 0) {
-            throw Error("Could not create subprocess"s + strerror(errno));
-        } else if (pid == 0) {
-            close(fd_r[0]);
-            close(fd_w[1]);
-
-            if (dup2(fd_r[1], STDOUT_FILENO) < 0) {
-                std::abort();
-            }
-
-            if (dup2(fd_w[0], STDIN_FILENO) < 0) {
-                std::abort();
-            }
-
-            char* const argv[] { const_cast<char*>(file_path.c_str()), nullptr };
-
-            if (execv(file_path.c_str(), argv) < 0) {
-                std::abort();
-            }
-
-            // Child execution stops in execv
-        } else {
-            close(fd_r[1]);
-            close(fd_w[0]);
-
-            // Parent reads from fd_r[0]
-            // Parent writes to fd_w[1]
-
-            m_input = fd_r[0];
-            m_output = fd_w[1];
-            m_child_pid = pid;
+    Subprocess::~Subprocess() {
+        if (m_context_thread.joinable()) {
+            m_context_thread.join();
         }
     }
 
-    Subprocess::~Subprocess() noexcept {
-        if (!(m_child_pid < 0)) {
-            std::abort();
-        }
-    }
+    void Subprocess::start(const std::string& file_path) {
+        m_process = boost_process::process(m_context, file_path, {}, boost_process::process_stdio{m_in, m_out, nullptr});  // FIXME errors?
 
-    Subprocess::Subprocess(Subprocess&& other) noexcept {
-        m_input = other.m_input;
-        m_output = other.m_output;
-        m_child_pid = other.m_child_pid;
-        m_read_buffer = std::move(other.m_read_buffer);
-        m_reading_queue = std::move(other.m_reading_queue);
+        task_read_line();
 
-        other.m_child_pid = -1;
-    }
-
-    Subprocess& Subprocess::operator=(Subprocess&& other) noexcept {
-        if (!(m_child_pid < 0)) {
-            std::abort();
-        }
-
-        m_input = other.m_input;
-        m_output = other.m_output;
-        m_child_pid = other.m_child_pid;
-        m_read_buffer = std::move(other.m_read_buffer);
-        m_reading_queue = std::move(other.m_reading_queue);
-
-        other.m_child_pid = -1;
-
-        return *this;
-    }
-
-    std::optional<std::string> Subprocess::readl() const {
-        if (!m_reading_queue.empty()) {
-            const auto result {m_reading_queue.front()};
-            m_reading_queue.pop_front();
-            return std::make_optional(result);
-        }
-
-        fd_set set;
-        FD_ZERO(&set);
-        FD_SET(m_input, &set);
-
-        timeval time;
-        time.tv_sec = 0;
-        time.tv_usec = 0;
-
-        const int result {select(m_input + 1, &set, nullptr, nullptr, &time)};
-
-        if (result < 0) {
-            throw Error("Could not poll read file: "s + strerror(errno));
-        } else if (result != 1) {
-            return std::nullopt;
-        }
-
-        char buffer[256] {};
-        const ssize_t bytes {::read(m_input, buffer, sizeof(buffer))};
-
-        if (bytes < 0) {
-            throw Error("Could not read from file: "s + strerror(errno));
-        }
-
-        if (bytes == 0) {
-            return std::nullopt;
-        }
-
-        m_read_buffer += std::string(buffer, bytes);
-
-        if (m_read_buffer.find('\n') == m_read_buffer.npos) {
-            return std::nullopt;
-        }
-
-        std::size_t last_index {0};
-
-        for (std::size_t i {0}; i < m_read_buffer.size(); i++) {
-            if (m_read_buffer[i] == '\n') {
-                m_reading_queue.push_back(m_read_buffer.substr(last_index, i - last_index));
-                last_index = i + 1;
+        m_context_thread = std::thread([this]() {
+            try {
+                m_context.run();
+            } catch (const boost_process::system_error& e) {
+                // TODO
             }
-        }
+        });
+    }
 
-        const auto remainder {m_read_buffer.substr(last_index)};
-        m_read_buffer.clear();
-        m_read_buffer += remainder;
-
+    std::string Subprocess::read_line() {
         {
-            const auto result {m_reading_queue.front()};
-            m_reading_queue.pop_front();
-            return std::make_optional(result);
+            std::lock_guard lock {m_read_mutex};
+            if (!m_reading_queue.empty()) {
+                const auto result {m_reading_queue.front()};
+                m_reading_queue.pop_front();
+                return result;
+            }
         }
+
+        return {};
     }
 
-    void Subprocess::write(const std::string& data) const {
-        const char* buffer {data.data()};
-        std::size_t size {data.size()};
+    void Subprocess::write_line(const std::string& data) {
+        const auto line {data + '\n'};
 
-        while (true) {
-            const ssize_t bytes {::write(m_output, buffer, size)};
+        boost_process::error_code ec;
+        boost::asio::write(m_in, boost::asio::const_buffer(line.data(), line.size()), ec);
 
-            if (bytes < 0) {
-                throw Error("Could not write to file: "s + strerror(errno));
-            }
-
-            if (static_cast<std::size_t>(bytes) < size) {
-                buffer = data.data() + bytes;
-                size -= bytes;
-
-                continue;
-            }
-
-            break;
+        if (ec) {
+            throw Error(ec.message());
         }
     }
 
     void Subprocess::wait() {
-        if (waitpid(std::exchange(m_child_pid, -1), nullptr, 0) < 0) {
-            throw Error("Failed waiting for subprocess: "s + strerror(errno));
+        boost_process::error_code ec;
+        m_process.wait(ec);
+
+        if (ec) {
+            throw Error(ec.message());
         }
     }
 
     void Subprocess::terminate() {
-        if (kill(std::exchange(m_child_pid, -1), SIGTERM) < 0) {
-            throw Error("Could not send terminate signal to subprocess: "s + strerror(errno));
+        boost_process::error_code ec;
+        m_process.request_exit(ec);
+
+        if (ec) {
+            throw Error(ec.message());
         }
     }
 
-    bool Subprocess::active() const noexcept {
-        return m_child_pid != -1;
+    bool Subprocess::alive() {
+        boost_process::error_code ec;
+        const bool result {m_process.running(ec)};
+
+        if (ec) {
+            throw Error(ec.message());
+        }
+
+        return result;
+    }
+
+    std::string Subprocess::extract_line(std::string& read_buffer) {
+        const std::size_t position {read_buffer.find('\n')};
+
+        assert(position != std::string::npos);
+
+        const auto result {read_buffer.substr(0, position)};
+        read_buffer = read_buffer.substr(position + 1);
+        return result;
+    }
+
+    void Subprocess::task_read_line() {
+        boost::asio::async_read_until(m_out, boost::asio::dynamic_buffer(m_read_buffer), '\n', [this](boost_process::error_code ec, std::size_t) {
+            if (ec) {
+                // TODO
+                return;
+            }
+
+            {
+                std::lock_guard lock {m_read_mutex};
+                m_reading_queue.push_back(extract_line(m_read_buffer));
+            }
+
+            task_read_line();
+        });
     }
 }

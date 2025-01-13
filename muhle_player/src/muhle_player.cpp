@@ -165,19 +165,7 @@ void MuhlePlayer::stop() {
 void MuhlePlayer::load_engine(const std::string& file_path) {
     try {
         m_engine.initialize(file_path);
-    } catch (const engine::EngineError& e) {
-        std::cerr << "Could not start engine: " << e.what() << '\n';
-        return;
-    }
-
-    try {
         m_engine.set_debug(true);
-    } catch (const engine::EngineError& e) {
-        std::cerr << "Engine error: " << e.what() << '\n';
-        return;
-    }
-
-    try {
         m_engine.new_game();
         m_engine.synchronize();
     } catch (const engine::EngineError& e) {
@@ -189,14 +177,13 @@ void MuhlePlayer::load_engine(const std::string& file_path) {
 }
 
 void MuhlePlayer::unload_engine() {
-    if (!m_engine.active()) {
-        return;
-    }
-
     try {
-        m_engine.uninitialize();
+        if (m_engine.alive()) {
+            m_engine.uninitialize();
+        }
     } catch (const engine::EngineError& e) {
-        std::cerr << "Could not stop engine: " << e.what() << '\n';
+        std::cerr << "Engine error: " << e.what() << '\n';
+        return;
     }
 }
 
@@ -271,14 +258,14 @@ void MuhlePlayer::load_engine_dialog() {
 }
 
 void MuhlePlayer::reset_position(const std::optional<std::string>& position) {
-    if (m_engine.active()) {
-        try {
+    try {
+        if (m_engine.alive()) {
             m_engine.new_game();
             m_engine.synchronize();
-        } catch (const engine::EngineError& e) {
-            std::cerr << "Engine error: " << e.what() << '\n';
-            return;
         }
+    } catch (const engine::EngineError& e) {
+        std::cerr << "Engine error: " << e.what() << '\n';
+        return;
     }
 
     try {
@@ -334,8 +321,12 @@ void MuhlePlayer::controls() {
         } else {
             if (ImGui::Button("Start Game")) {
                 if (m_white == PlayerComputer || m_black == PlayerComputer) {
-                    if (m_engine.active()) {
-                        m_state = State::Start;
+                    try {
+                        if (m_engine.alive()) {
+                            m_state = State::Start;
+                        }
+                    } catch (const engine::EngineError& e) {
+                        std::cerr << "Engine error: " << e.what() << '\n';
                     }
                 } else {
                     m_state = State::Start;

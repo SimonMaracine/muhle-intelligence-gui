@@ -2,3 +2,6 @@
 	path = extern/tiny-gui-base
 	url = https://github.com/SimonMaracine/tiny-gui-base
 	branch = stable
+[submodule "extern/boost"]
+	path = extern/boost
+	url = https://github.com/boostorg/boost

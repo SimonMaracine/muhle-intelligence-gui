@@ -45,7 +45,7 @@ namespace engine {
 
         void set_log_output(bool log_output);
         void set_info_callback(std::function<void(const Info&, void*)>&& info_callback, void* info_callback_pointer);
-        bool active() const { return m_subprocess.active(); }
+        bool alive();
         const std::string& get_name() const { return m_name; }
     private:
         void try_terminate();

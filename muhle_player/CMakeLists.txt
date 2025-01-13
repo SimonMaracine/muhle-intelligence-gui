@@ -16,7 +16,7 @@ add_executable(muhle_player
 
 target_include_directories(muhle_player PRIVATE "src")
 
-target_link_libraries(muhle_player PRIVATE gui_base)
+target_link_libraries(muhle_player PRIVATE gui_base Boost::process)
 
 if(UNIX)
     target_compile_options(muhle_player PRIVATE "-Wall" "-Wextra" "-Wpedantic" "-Wconversion")
