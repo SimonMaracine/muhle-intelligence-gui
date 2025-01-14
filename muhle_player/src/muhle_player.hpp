@@ -30,7 +30,6 @@ private:
     void reset_position(const std::optional<std::string>& position);
     void set_position();
     void about();
-    void notation();
     void board();
     void controls();
     void game();

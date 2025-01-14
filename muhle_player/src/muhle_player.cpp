@@ -195,15 +195,13 @@ void MuhlePlayer::unload_engine() {
 void MuhlePlayer::main_menu_bar() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Player")) {
-            const bool active {m_state == State::Ready || m_state == State::HumanThinking || m_state == State::Over};
-
-            if (ImGui::MenuItem("Load Engine", nullptr, nullptr, active)) {
+            if (ImGui::MenuItem("Load Engine")) {
                 load_engine();
             }
-            if (ImGui::MenuItem("Reset Position", nullptr, nullptr, active)) {
+            if (ImGui::MenuItem("Reset Position")) {
                 reset_position(std::nullopt);
             }
-            if (ImGui::BeginMenu("Set Position", active)) {
+            if (ImGui::BeginMenu("Set Position")) {
                 set_position();
 
                 ImGui::EndMenu();
@@ -214,17 +212,9 @@ void MuhlePlayer::main_menu_bar() {
 
             ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu("Options")) {
-            ImGui::EndMenu();
-        }
         if (ImGui::BeginMenu("Help")) {
             if (ImGui::BeginMenu("About")) {
                 about();
-
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Notation")) {
-                notation();
 
                 ImGui::EndMenu();
             }
@@ -257,6 +247,9 @@ void MuhlePlayer::load_engine_dialog() {
                 // Unload any engine first
                 unload_engine();
                 load_engine(file_path);
+
+                // The position needs to be fresh
+                reset_position(std::nullopt);
             }
         }
 
@@ -267,6 +260,8 @@ void MuhlePlayer::load_engine_dialog() {
 void MuhlePlayer::reset_position(const std::optional<std::string>& position) {
     if (m_engine) {
         try {
+            // Stop the engine first
+            m_engine->stop_thinking();
             m_engine->new_game();
             m_engine->synchronize();
         } catch (const engine::EngineError& e) {
@@ -303,10 +298,6 @@ void MuhlePlayer::set_position() {
 
 void MuhlePlayer::about() {
     ImGui::Text("%s", u8"Mühle Player - for testing and developing Mühle Intelligence");
-}
-
-void MuhlePlayer::notation() {
-
 }
 
 void MuhlePlayer::board() {
