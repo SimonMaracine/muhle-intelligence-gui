@@ -12,15 +12,14 @@ using namespace std::chrono_literals;
 namespace engine {
     void Engine::initialize(const std::string& file_path) {
         try {
-            m_subprocess.start(file_path);
-        } catch (const subprocess::Error& e) {
+            m_subprocess.open(file_path);
+        } catch (const subprocess::SubprocessError& e) {
             throw EngineError("Could not start subprocess: "s + e.what());
         }
 
         try {
             m_subprocess.write_line("gbgp");
-        } catch (const subprocess::Error& e) {
-            try_terminate();
+        } catch (const subprocess::SubprocessError& e) {
             throw EngineError("Could not write to subprocess: "s + e.what());
         }
 
@@ -30,7 +29,6 @@ namespace engine {
             const auto now {std::chrono::steady_clock::now()};
 
             if (now - begin > 5s) {
-                try_terminate();
                 throw EngineError("Engine did not respond in a timely manner");
             }
 
@@ -38,8 +36,7 @@ namespace engine {
 
             try {
                 message = m_subprocess.read_line();
-            } catch (const subprocess::Error& e) {
-                try_terminate();
+            } catch (const subprocess::SubprocessError& e) {
                 throw EngineError("Could not read from subprocess: "s + e.what());
             }
 
@@ -79,8 +76,7 @@ namespace engine {
     void Engine::set_debug(bool active) {
         try {
             m_subprocess.write_line("debug"s + (active ? " on" : " off"));
-        } catch (const subprocess::Error& e) {
-            try_terminate();
+        } catch (const subprocess::SubprocessError& e) {
             throw EngineError("Could not write to subprocess: "s + e.what());
         }
     }
@@ -88,8 +84,7 @@ namespace engine {
     void Engine::synchronize() {
         try {
             m_subprocess.write_line("isready");
-        } catch (const subprocess::Error& e) {
-            try_terminate();
+        } catch (const subprocess::SubprocessError& e) {
             throw EngineError("Could not write to subprocess: "s + e.what());
         }
 
@@ -99,7 +94,6 @@ namespace engine {
             const auto now {std::chrono::steady_clock::now()};
 
             if (now - begin > 5s) {
-                try_terminate();
                 throw EngineError("Engine did not respond in a timely manner");
             }
 
@@ -107,8 +101,7 @@ namespace engine {
 
             try {
                 message = m_subprocess.read_line();
-            } catch (const subprocess::Error& e) {
-                try_terminate();
+            } catch (const subprocess::SubprocessError& e) {
                 throw EngineError("Could not read from subprocess: "s + e.what());
             }
 
@@ -136,8 +129,7 @@ namespace engine {
     void Engine::set_option(const std::string& name, const std::optional<std::string>& value) {
         try {
             m_subprocess.write_line("setoption name " + name + (value ? " value " + *value : ""));
-        } catch (const subprocess::Error& e) {
-            try_terminate();
+        } catch (const subprocess::SubprocessError& e) {
             throw EngineError("Could not write to subprocess: "s + e.what());
         }
     }
@@ -145,8 +137,7 @@ namespace engine {
     void Engine::new_game() {
         try {
             m_subprocess.write_line("newgame");
-        } catch (const subprocess::Error& e) {
-            try_terminate();
+        } catch (const subprocess::SubprocessError& e) {
             throw EngineError("Could not write to subprocess: "s + e.what());
         }
     }
@@ -171,8 +162,7 @@ namespace engine {
             };
 
             m_subprocess.write_line("position" + (position ? " pos " + *position : " startpos") + moves_str);
-        } catch (const subprocess::Error& e) {
-            try_terminate();
+        } catch (const subprocess::SubprocessError& e) {
             throw EngineError("Could not write to subprocess: "s + e.what());
         }
 
@@ -184,8 +174,7 @@ namespace engine {
                 (max_depth ? " maxdepth " + std::to_string(*max_depth) : "") +
                 (max_time ? " maxtime " + std::to_string(*max_time) : "")
             );
-        } catch (const subprocess::Error& e) {
-            try_terminate();
+        } catch (const subprocess::SubprocessError& e) {
             throw EngineError("Could not write to subprocess: "s + e.what());
         }
     }
@@ -193,8 +182,7 @@ namespace engine {
     void Engine::stop_thinking() {
         try {
             m_subprocess.write_line("stop");
-        } catch (const subprocess::Error& e) {
-            try_terminate();
+        } catch (const subprocess::SubprocessError& e) {
             throw EngineError("Could not write to subprocess: "s + e.what());
         }
     }
@@ -204,8 +192,7 @@ namespace engine {
 
         try {
             message = m_subprocess.read_line();
-        } catch (const subprocess::Error& e) {
-            try_terminate();
+        } catch (const subprocess::SubprocessError& e) {
             throw EngineError("Could not read from subprocess: "s + e.what());
         }
 
@@ -242,15 +229,13 @@ namespace engine {
 
         try {
             m_subprocess.write_line("quit");
-        } catch (const subprocess::Error& e) {
-            try_terminate();
+        } catch (const subprocess::SubprocessError& e) {
             throw EngineError("Could not write to subprocess: "s + e.what());
         }
 
         try {
             m_subprocess.wait();
-        } catch (const subprocess::Error& e) {
-            try_terminate();
+        } catch (const subprocess::SubprocessError& e) {
             throw EngineError("Could not wait for subprocess: "s + e.what());
         }
     }
@@ -273,15 +258,9 @@ namespace engine {
     bool Engine::alive() {
         try {
             return m_subprocess.alive();
-        } catch (const subprocess::Error& e) {
+        } catch (const subprocess::SubprocessError& e) {
             throw EngineError("Could not check if the process is alive: "s + e.what());
         }
-    }
-
-    void Engine::try_terminate() {
-        try {
-            m_subprocess.terminate();
-        } catch (const subprocess::Error&) {}
     }
 
     std::vector<std::string> Engine::parse_message(const std::string& message) {

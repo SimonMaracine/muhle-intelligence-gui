@@ -5,10 +5,12 @@
 #include <thread>
 #include <mutex>
 #include <deque>
+#include <exception>
 
 #ifdef __GNUG__
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wconversion"
+    #pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
 
 #define BOOST_PROCESS_VERSION 2
@@ -27,13 +29,19 @@ namespace subprocess {
         Subprocess();
         ~Subprocess();
 
-        void start(const std::string& file_path);
+        Subprocess(const Subprocess&) = delete;
+        Subprocess& operator=(const Subprocess&) = delete;
+        Subprocess(Subprocess&&) = delete;
+        Subprocess& operator=(Subprocess&&) = delete;
+
+        void open(const std::string& file_path);
+        void wait();
+        bool alive();
         std::string read_line();
         void write_line(const std::string& data);
-        void wait();
-        void terminate();
-        bool alive();
     private:
+        void throw_if_error();
+        void kill();
         static std::string extract_line(std::string& read_buffer);
         void task_read_line();
 
@@ -46,12 +54,14 @@ namespace subprocess {
         std::mutex m_read_mutex;
         std::string m_read_buffer;
         std::deque<std::string> m_reading_queue;
+
+        std::exception_ptr m_exception;
     };
 
-    struct Error : public std::runtime_error {
-        explicit Error(const char* message)
+    struct SubprocessError : public std::runtime_error {
+        explicit SubprocessError(const char* message)
             : std::runtime_error(message) {}
-        explicit Error(const std::string& message)
+        explicit SubprocessError(const std::string& message)
             : std::runtime_error(message) {}
     };
 }

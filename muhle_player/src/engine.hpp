@@ -48,7 +48,6 @@ namespace engine {
         bool alive();
         const std::string& get_name() const { return m_name; }
     private:
-        void try_terminate();
         static std::vector<std::string> parse_message(const std::string& message);
         static Info parse_info(const std::vector<std::string>& tokens);
         static std::optional<unsigned int> parse_info_ui(const std::vector<std::string>& tokens, const std::string& name);

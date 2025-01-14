@@ -34,33 +34,6 @@ void MuhlePlayer::start() {
                 break;
         }
     });
-
-    m_engine.set_log_output(true);
-
-    m_engine.set_info_callback([](const engine::Engine::Info& info, void* pointer) {
-        MuhlePlayer* self {static_cast<MuhlePlayer*>(pointer)};
-
-        if (info.score) {
-            switch (info.score->index()) {
-                case 0:
-                    self->m_score = "eval " + std::to_string(std::get<0>(*info.score).value);
-                    break;
-                case 1:
-                    self->m_score = "win " + std::to_string(std::get<1>(*info.score).value);
-                    break;
-            }
-        }
-
-        if (info.pv) {
-            if (info.pv->empty()) {
-                self->m_pv.clear();
-            } else {
-                self->m_pv = std::accumulate(++info.pv->cbegin(), info.pv->cend(), *info.pv->cbegin(), [](std::string r, const std::string& move) {
-                    return std::move(r) + " " + move;
-                });
-            }
-        }
-    }, this);
 }
 
 void MuhlePlayer::update() {
@@ -104,7 +77,7 @@ void MuhlePlayer::update() {
             break;
         case State::ComputerBegin:
             try {
-                m_engine.start_thinking(
+                m_engine->start_thinking(
                     board::position_to_string(m_board.get_setup_position()),
                     m_moves,
                     m_clock.get_white_time(),
@@ -125,7 +98,7 @@ void MuhlePlayer::update() {
             std::optional<std::string> best_move;
 
             try {
-                best_move = m_engine.done_thinking();
+                best_move = m_engine->done_thinking();
             } catch (const engine::EngineError& e) {
                 std::cerr << "Engine error: " << e.what() << '\n';
                 m_state = State::Stop;
@@ -163,28 +136,60 @@ void MuhlePlayer::stop() {
 }
 
 void MuhlePlayer::load_engine(const std::string& file_path) {
+    m_engine = std::make_unique<engine::Engine>();
+
     try {
-        m_engine.initialize(file_path);
-        m_engine.set_debug(true);
-        m_engine.new_game();
-        m_engine.synchronize();
+        m_engine->initialize(file_path);
+        m_engine->set_debug(true);
+        m_engine->new_game();
+        m_engine->synchronize();
     } catch (const engine::EngineError& e) {
         std::cerr << "Engine error: " << e.what() << '\n';
         return;
     }
 
-    m_engine_name = m_engine.get_name();
+    m_engine->set_log_output(true);
+
+    m_engine->set_info_callback([](const engine::Engine::Info& info, void* pointer) {
+        MuhlePlayer* self {static_cast<MuhlePlayer*>(pointer)};
+
+        if (info.score) {
+            switch (info.score->index()) {
+                case 0:
+                    self->m_score = "eval " + std::to_string(std::get<0>(*info.score).value);
+                    break;
+                case 1:
+                    self->m_score = "win " + std::to_string(std::get<1>(*info.score).value);
+                    break;
+            }
+        }
+
+        if (info.pv) {
+            if (info.pv->empty()) {
+                self->m_pv.clear();
+            } else {
+                self->m_pv = std::accumulate(++info.pv->cbegin(), info.pv->cend(), *info.pv->cbegin(), [](std::string r, const std::string& move) {
+                    return std::move(r) + " " + move;
+                });
+            }
+        }
+    }, this);
+
+    m_engine_name = m_engine->get_name();
 }
 
 void MuhlePlayer::unload_engine() {
-    try {
-        if (m_engine.alive()) {
-            m_engine.uninitialize();
-        }
-    } catch (const engine::EngineError& e) {
-        std::cerr << "Engine error: " << e.what() << '\n';
+    if (!m_engine) {
         return;
     }
+
+    try {
+        m_engine->uninitialize();
+    } catch (const engine::EngineError& e) {
+        std::cerr << "Engine error: " << e.what() << '\n';
+    }
+
+    m_engine.reset();
 }
 
 void MuhlePlayer::main_menu_bar() {
@@ -249,6 +254,8 @@ void MuhlePlayer::load_engine_dialog() {
             const std::string file_path {ImGuiFileDialog::Instance()->GetFilePathName()};
 
             if (!file_path.empty()) {
+                // Unload any engine first
+                unload_engine();
                 load_engine(file_path);
             }
         }
@@ -258,14 +265,14 @@ void MuhlePlayer::load_engine_dialog() {
 }
 
 void MuhlePlayer::reset_position(const std::optional<std::string>& position) {
-    try {
-        if (m_engine.alive()) {
-            m_engine.new_game();
-            m_engine.synchronize();
+    if (m_engine) {
+        try {
+            m_engine->new_game();
+            m_engine->synchronize();
+        } catch (const engine::EngineError& e) {
+            std::cerr << "Engine error: " << e.what() << '\n';
+            return;
         }
-    } catch (const engine::EngineError& e) {
-        std::cerr << "Engine error: " << e.what() << '\n';
-        return;
     }
 
     try {
@@ -322,7 +329,7 @@ void MuhlePlayer::controls() {
             if (ImGui::Button("Start Game")) {
                 if (m_white == PlayerComputer || m_black == PlayerComputer) {
                     try {
-                        if (m_engine.alive()) {
+                        if (m_engine) {
                             m_state = State::Start;
                         }
                     } catch (const engine::EngineError& e) {
@@ -454,7 +461,7 @@ int MuhlePlayer::get_board_player_type() const {
 
 void MuhlePlayer::assert_engine_game_over() {
     try {
-        m_engine.start_thinking(
+        m_engine->start_thinking(
             board::position_to_string(m_board.get_setup_position()),
             m_moves,
             std::nullopt,
@@ -464,7 +471,7 @@ void MuhlePlayer::assert_engine_game_over() {
         );
 
         while (true) {
-            const auto best_move {m_engine.done_thinking()};
+            const auto best_move {m_engine->done_thinking()};
 
             if (!best_move) {
                 continue;

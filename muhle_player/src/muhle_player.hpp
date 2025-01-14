@@ -4,6 +4,7 @@
 #include <vector>
 #include <tuple>
 #include <optional>
+#include <memory>
 
 #include <gui_base/gui_base.hpp>
 
@@ -44,7 +45,7 @@ private:
     };
 
     board::Board m_board;
-    engine::Engine m_engine;
+    std::unique_ptr<engine::Engine> m_engine;
     std::string m_engine_name {""};
 
     int m_white {PlayerHuman};
