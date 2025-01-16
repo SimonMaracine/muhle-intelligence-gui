@@ -6,7 +6,7 @@ set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Variable used to control the build ty
 
 set(GUI_BASE_INCLUDE_FILE_DIALOG ON)
 set(GLFW_BUILD_X11 OFF)  # TODO temp
-set(BOOST_PROCESS_USE_STD_FS ON)
+# set(BOOST_PROCESS_USE_STD_FS ON)  # TODO wait for fix
 
 add_subdirectory(extern/tiny-gui-base)
 add_subdirectory(extern/boost EXCLUDE_FROM_ALL)

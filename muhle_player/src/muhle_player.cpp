@@ -67,7 +67,7 @@ void MuhlePlayer::update() {
                     m_state = State::HumanThinking;
                     break;
                 case PlayerComputer:
-                    m_state = State::ComputerBegin;
+                    m_state = State::ComputerStartThinking;
                     break;
             }
 
@@ -75,7 +75,7 @@ void MuhlePlayer::update() {
         }
         case State::HumanThinking:
             break;
-        case State::ComputerBegin:
+        case State::ComputerStartThinking:
             try {
                 m_engine->start_thinking(
                     board::position_to_string(m_board.get_setup_position()),

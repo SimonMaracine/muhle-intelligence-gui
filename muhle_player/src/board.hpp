@@ -118,7 +118,6 @@ namespace board {
     private:
         void update_user_input();
         void select(int index);
-
         void try_place(int place_index);
         void try_move(int source_index, int destination_index);
         void try_capture(int capture_index);
@@ -144,9 +143,9 @@ namespace board {
 
         // Move generation
         std::vector<Move> generate_moves() const;
-        static void generate_moves_phase1(Board_& board, std::vector<Move>& moves, Player player);
-        static void generate_moves_phase2(Board_& board, std::vector<Move>& moves, Player player);
-        static void generate_moves_phase3(Board_& board, std::vector<Move>& moves, Player player);
+        static std::vector<Move> generate_moves_phase1(Board_& board, Player player);
+        static std::vector<Move> generate_moves_phase2(Board_& board, Player player);
+        static std::vector<Move> generate_moves_phase3(Board_& board, Player player);
         static void make_place_move(Board_& board, Player player, int place_index);
         static void unmake_place_move(Board_& board, int place_index);
         static void make_move_move(Board_& board, int source_index, int destination_index);
@@ -168,11 +167,11 @@ namespace board {
         float m_board_unit {};
         ImVec2 m_board_offset;
         GameOver m_game_over {GameOver::None};
+        Position m_setup_position;
         std::array<PieceObj, 18> m_pieces;
         std::vector<Move> m_legal_moves;
         std::vector<Move> m_candidate_moves;
         std::function<void(const Move&)> m_move_callback;
-        Position m_setup_position;
     };
 
     struct BoardError : std::runtime_error {

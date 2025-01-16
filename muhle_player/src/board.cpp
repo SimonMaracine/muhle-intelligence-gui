@@ -411,33 +411,51 @@ namespace board {
 
         switch (move.type) {
             case MoveType::Place:
-                m_pieces[new_piece_to_place(m_position.player)].move(node_position(move.place.place_index));
-                m_pieces[new_piece_to_place(m_position.player)].node_index = move.place.place_index;
+                {
+                    const int index {new_piece_to_place(m_position.player)};
+                    m_pieces[index].move(node_position(move.place.place_index));
+                    m_pieces[index].node_index = move.place.place_index;
+                }
 
                 play_place_move(move);
 
                 break;
             case MoveType::PlaceCapture:
-                m_pieces[new_piece_to_place(m_position.player)].move(node_position(move.place_capture.place_index));
-                m_pieces[new_piece_to_place(m_position.player)].node_index = move.place_capture.place_index;
-                m_pieces[piece_on_node(iter->place_capture.capture_index)].move(ImVec2());
-                m_pieces[piece_on_node(iter->place_capture.capture_index)].node_index = -1;
+                {
+                    const int index {new_piece_to_place(m_position.player)};
+                    m_pieces[index].move(node_position(move.place_capture.place_index));
+                    m_pieces[index].node_index = move.place_capture.place_index;
+                }
+                {
+                    const int index {piece_on_node(move.place_capture.capture_index)};
+                    m_pieces[index].move(ImVec2());
+                    m_pieces[index].node_index = -1;
+                }
 
                 play_place_capture_move(move);
 
                 break;
             case MoveType::Move:
-                m_pieces[piece_on_node(move.move.source_index)].move(node_position(move.move.destination_index));
-                m_pieces[piece_on_node(move.move.source_index)].node_index = move.move.destination_index;
+                {
+                    const int index {piece_on_node(move.move.source_index)};
+                    m_pieces[index].move(node_position(move.move.destination_index));
+                    m_pieces[index].node_index = move.move.destination_index;
+                }
 
                 play_move_move(move);
 
                 break;
             case MoveType::MoveCapture:
-                m_pieces[piece_on_node(move.move_capture.source_index)].move(node_position(move.move_capture.destination_index));
-                m_pieces[piece_on_node(move.move_capture.source_index)].node_index = move.move_capture.destination_index;
-                m_pieces[piece_on_node(iter->move_capture.capture_index)].move(ImVec2());
-                m_pieces[piece_on_node(iter->move_capture.capture_index)].node_index = -1;
+                {
+                    const int index {piece_on_node(move.move_capture.source_index)};
+                    m_pieces[index].move(node_position(move.move_capture.destination_index));
+                    m_pieces[index].node_index = move.move_capture.destination_index;
+                }
+                {
+                    const int index {piece_on_node(move.move_capture.capture_index)};
+                    m_pieces[index].move(ImVec2());
+                    m_pieces[index].node_index = -1;
+                }
 
                 play_move_capture_move(move);
 
@@ -510,8 +528,9 @@ namespace board {
             })};
 
             if (iter != m_legal_moves.cend()) {
-                m_pieces[new_piece_to_place(m_position.player)].move(node_position(iter->place.place_index));
-                m_pieces[new_piece_to_place(m_position.player)].node_index = iter->place.place_index;
+                const int index {new_piece_to_place(m_position.player)};
+                m_pieces[index].move(node_position(iter->place.place_index));
+                m_pieces[index].node_index = iter->place.place_index;
 
                 const Move move {*iter};
                 play_place_move(move);
@@ -527,8 +546,9 @@ namespace board {
         });
 
         if (!m_candidate_moves.empty()) {
-            m_pieces[new_piece_to_place(m_position.player)].move(node_position(m_candidate_moves[0].place_capture.place_index));
-            m_pieces[new_piece_to_place(m_position.player)].node_index = m_candidate_moves[0].place_capture.place_index;
+            const int index {new_piece_to_place(m_position.player)};
+            m_pieces[index].move(node_position(m_candidate_moves[0].place_capture.place_index));
+            m_pieces[index].node_index = m_candidate_moves[0].place_capture.place_index;
 
             m_capture_piece = true;
         }
@@ -545,8 +565,9 @@ namespace board {
             })};
 
             if (iter != m_legal_moves.cend()) {
-                m_pieces[piece_on_node(iter->move.source_index)].move(node_position(iter->move.destination_index));
-                m_pieces[piece_on_node(iter->move.source_index)].node_index = iter->move.destination_index;
+                const int index {piece_on_node(iter->move.source_index)};
+                m_pieces[index].move(node_position(iter->move.destination_index));
+                m_pieces[index].node_index = iter->move.destination_index;
 
                 const Move move {*iter};
                 play_move_move(move);
@@ -566,8 +587,9 @@ namespace board {
         });
 
         if (!m_candidate_moves.empty()) {
-            m_pieces[piece_on_node(m_candidate_moves[0].move.source_index)].move(node_position(m_candidate_moves[0].move.destination_index));
-            m_pieces[piece_on_node(m_candidate_moves[0].move.source_index)].node_index = m_candidate_moves[0].move.destination_index;
+            const int index {piece_on_node(m_candidate_moves[0].move.source_index)};
+            m_pieces[index].move(node_position(m_candidate_moves[0].move.destination_index));
+            m_pieces[index].node_index = m_candidate_moves[0].move.destination_index;
 
             m_capture_piece = true;
         }
@@ -812,23 +834,22 @@ namespace board {
     }
 
     std::vector<Move> Board::generate_moves() const {
-        std::vector<Move> moves;
         Board_ local_board {m_position.board};
 
         if (m_position.plies < 18) {
-            generate_moves_phase1(local_board, moves, m_position.player);
+            return generate_moves_phase1(local_board, m_position.player);
         } else {
             if (count_pieces(local_board, m_position.player) == 3) {
-                generate_moves_phase3(local_board, moves, m_position.player);
+                return generate_moves_phase3(local_board, m_position.player);
             } else {
-                generate_moves_phase2(local_board, moves, m_position.player);
+                return generate_moves_phase2(local_board, m_position.player);
             }
         }
-
-        return moves;
     }
 
-    void Board::generate_moves_phase1(Board_& board, std::vector<Move>& moves, Player player) {
+    std::vector<Move> Board::generate_moves_phase1(Board_& board, Player player) {
+        std::vector<Move> moves;
+
         for (int i {0}; i < 24; i++) {
             if (board[i] != Node::None) {
                 continue;
@@ -857,9 +878,13 @@ namespace board {
 
             unmake_place_move(board, i);
         }
+
+        return moves;
     }
 
-    void Board::generate_moves_phase2(Board_& board, std::vector<Move>& moves, Player player) {
+    std::vector<Move> Board::generate_moves_phase2(Board_& board, Player player) {
+        std::vector<Move> moves;
+
         for (int i {0}; i < 24; i++) {
             if (board[i] != static_cast<Node>(player)) {
                 continue;
@@ -892,9 +917,13 @@ namespace board {
                 unmake_move_move(board, i, free_positions[j]);
             }
         }
+
+        return moves;
     }
 
-    void Board::generate_moves_phase3(Board_& board, std::vector<Move>& moves, Player player) {
+    std::vector<Move> Board::generate_moves_phase3(Board_& board, Player player) {
+        std::vector<Move> moves;
+
         for (int i {0}; i < 24; i++) {
             if (board[i] != static_cast<Node>(player)) {
                 continue;
@@ -929,6 +958,8 @@ namespace board {
                 unmake_move_move(board, i, j);
             }
         }
+
+        return moves;
     }
 
     void Board::make_place_move(Board_& board, Player player, int place_index) {

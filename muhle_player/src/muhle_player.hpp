@@ -45,7 +45,7 @@ private:
 
     board::Board m_board;
     std::unique_ptr<engine::Engine> m_engine;
-    std::string m_engine_name {""};
+    std::string m_engine_name;
 
     int m_white {PlayerHuman};
     int m_black {PlayerComputer};
@@ -55,7 +55,7 @@ private:
         Start,
         NextTurn,
         HumanThinking,
-        ComputerBegin,
+        ComputerStartThinking,
         ComputerThinking,
         Stop,
         Over
