@@ -5,7 +5,6 @@
 #include <string>
 #include <functional>
 #include <stdexcept>
-#include <optional>
 
 #include <gui_base/gui_base.hpp>
 
@@ -107,12 +106,12 @@ namespace board {
 
         Player get_player() const { return m_position.player; }
         GameOver get_game_over() const { return m_game_over; }
+        const Position& get_setup_position() const { return m_setup_position; }
 
         void update(bool user_input = false);
-        void reset(const std::optional<Position>& position);
         void debug() const;
 
-        const Position& get_setup_position() const;
+        void reset(const Position& position);
         void play_move(const Move& move);
         void timeout(Player player);
     private:
@@ -153,7 +152,7 @@ namespace board {
         static bool is_mill(const Board_& board, Player player, int index);
         static bool all_pieces_in_mills(const Board_& board, Player player);
         static std::vector<int> neighbor_free_positions(const Board_& board, int index);
-        static unsigned int count_pieces(const Board_& board, Player player);
+        static int count_pieces(const Board_& board, Player player);
         static Player opponent(Player player);
 
         // Game data

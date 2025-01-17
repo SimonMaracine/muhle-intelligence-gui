@@ -351,21 +351,6 @@ namespace board {
         ImGui::PopStyleVar(2);
     }
 
-    void Board::reset(const std::optional<Position>& position) {
-        m_position = position ? *position : Position {};
-        m_plies_no_advancement = 0;
-        m_positions.clear();
-
-        m_capture_piece = false;
-        m_select_index = -1;
-        m_game_over = GameOver::None;
-        m_setup_position = m_position;
-
-        m_legal_moves = generate_moves();
-
-        initialize_pieces();
-    }
-
     void Board::debug() const {
         if (ImGui::Begin("Board Internal")) {
             const char* game_over_string {};
@@ -398,8 +383,19 @@ namespace board {
         ImGui::End();
     }
 
-    const Position& Board::get_setup_position() const {
-        return m_setup_position;
+    void Board::reset(const Position& position) {
+        m_position = position;
+        m_plies_no_advancement = 0;
+        m_positions.clear();
+
+        m_capture_piece = false;
+        m_select_index = -1;
+        m_game_over = GameOver::None;
+        m_setup_position = m_position;
+
+        m_legal_moves = generate_moves();
+
+        initialize_pieces();
     }
 
     void Board::play_move(const Move& move) {
@@ -1173,7 +1169,7 @@ namespace board {
         return result;
     }
 
-    unsigned int Board::count_pieces(const Board_& board, Player player) {
+    int Board::count_pieces(const Board_& board, Player player) {
         int result {0};
 
         for (const Node node : board) {

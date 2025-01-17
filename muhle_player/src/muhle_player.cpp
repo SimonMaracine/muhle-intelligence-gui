@@ -25,14 +25,7 @@ void MuhlePlayer::start() {
             return;
         }
 
-        switch (get_board_player_type()) {
-            case PlayerHuman:
-                m_state = State::NextTurn;
-                break;
-            case PlayerComputer:
-                m_state = State::NextTurn;
-                break;
-        }
+        m_state = State::NextTurn;
     });
 }
 
@@ -271,7 +264,7 @@ void MuhlePlayer::reset_position(const std::optional<std::string>& position) {
     }
 
     try {
-        m_board.reset(position ? std::make_optional(board::position_from_string(*position)) : std::nullopt);
+        m_board.reset(position ? board::position_from_string(*position) : board::Position());
     } catch (const board::BoardError& e) {
         std::cerr << "Invalid input: " << e.what() << '\n';
         return;
