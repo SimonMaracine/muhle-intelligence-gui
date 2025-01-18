@@ -31,7 +31,7 @@ namespace board {
         None,
         WinnerWhite,
         WinnerBlack,
-        TieBetweenBothPlayers
+        Draw
     };
 
     struct Move {

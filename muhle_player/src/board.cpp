@@ -365,8 +365,8 @@ namespace board {
                 case GameOver::WinnerBlack:
                     game_over_string = "WinnerBlack";
                     break;
-                case GameOver::TieBetweenBothPlayers:
-                    game_over_string = "TieBetweenBothPlayers";
+                case GameOver::Draw:
+                    game_over_string = "Draw";
                     break;
             }
 
@@ -740,7 +740,7 @@ namespace board {
         }
 
         if (m_plies_no_advancement == 100) {
-            m_game_over = GameOver::TieBetweenBothPlayers;
+            m_game_over = GameOver::Draw;
         }
     }
 
@@ -754,7 +754,7 @@ namespace board {
         assert(count >= 1);
 
         if (count == 3) {
-            m_game_over = GameOver::TieBetweenBothPlayers;
+            m_game_over = GameOver::Draw;
         }
     }
 

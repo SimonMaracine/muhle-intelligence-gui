@@ -245,7 +245,7 @@ namespace engine {
 
         m_log_output_stream.open("muhle_player.log", std::ios::app);
 
-        if (!m_log_output_stream) {
+        if (!m_log_output_stream.is_open()) {
             m_log_output = false;
         }
     }
