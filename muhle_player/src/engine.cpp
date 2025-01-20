@@ -44,7 +44,7 @@ namespace engine {
                 continue;
             }
 
-            if (m_log_output) {
+            if (m_log_output_stream.is_open()) {
                 m_log_output_stream << message << '\n';
                 m_log_output_stream.flush();
             }
@@ -109,7 +109,7 @@ namespace engine {
                 continue;
             }
 
-            if (m_log_output) {
+            if (m_log_output_stream.is_open()) {
                 m_log_output_stream << message << '\n';
                 m_log_output_stream.flush();
             }
@@ -200,7 +200,7 @@ namespace engine {
             return std::nullopt;
         }
 
-        if (m_log_output) {
+        if (m_log_output_stream.is_open()) {
             m_log_output_stream << message << '\n';
             m_log_output_stream.flush();
         }
@@ -217,7 +217,7 @@ namespace engine {
             }
         } else if (tokens[0] == "info") {
             if (m_info_callback) {
-                m_info_callback(parse_info(tokens), m_info_callback_pointer);
+                m_info_callback(parse_info(tokens));
             }
         }
 
@@ -240,26 +240,15 @@ namespace engine {
         }
     }
 
-    void Engine::set_log_output(bool log_output) {
-        m_log_output = log_output;
-
-        m_log_output_stream.open("muhle_player.log", std::ios::app);
-
-        if (!m_log_output_stream.is_open()) {
-            m_log_output = false;
-        }
-    }
-
-    void Engine::set_info_callback(std::function<void(const Info&, void*)>&& info_callback, void* info_callback_pointer) {
+    void Engine::set_info_callback(std::function<void(const Info&)>&& info_callback) {
         m_info_callback = std::move(info_callback);
-        m_info_callback_pointer = info_callback_pointer;
     }
 
-    bool Engine::alive() {
-        try {
-            return m_subprocess.alive();
-        } catch (const subprocess::SubprocessError& e) {
-            throw EngineError("Could not check if the process is alive: "s + e.what());
+    void Engine::set_log_output(bool enable) {
+        if (enable) {
+            m_log_output_stream.open("muhle_player.log", std::ios::app);
+        } else {
+            m_log_output_stream.close();
         }
     }
 

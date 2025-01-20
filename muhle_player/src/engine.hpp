@@ -43,9 +43,8 @@ namespace engine {
         std::optional<std::string> done_thinking();
         void uninitialize();
 
-        void set_log_output(bool log_output);
-        void set_info_callback(std::function<void(const Info&, void*)>&& info_callback, void* info_callback_pointer);
-        bool alive();
+        void set_info_callback(std::function<void(const Info&)>&& info_callback);
+        void set_log_output(bool enable);
         const std::string& get_name() const { return m_name; }
     private:
         static std::vector<std::string> parse_message(const std::string& message);
@@ -56,11 +55,9 @@ namespace engine {
         static bool token_available(const std::vector<std::string>& tokens, std::size_t index);
 
         subprocess::Subprocess m_subprocess;
-        std::string m_name;
-        std::function<void(const Info&, void*)> m_info_callback;
-        void* m_info_callback_pointer {};
-        bool m_log_output {false};
+        std::function<void(const Info&)> m_info_callback;
         std::ofstream m_log_output_stream;
+        std::string m_name;
     };
 
     struct EngineError : std::runtime_error {

@@ -1,10 +1,10 @@
 #pragma once
 
 #include <string>
-#include <stdexcept>
 #include <thread>
 #include <mutex>
 #include <deque>
+#include <stdexcept>
 #include <exception>
 
 #ifdef __GNUG__

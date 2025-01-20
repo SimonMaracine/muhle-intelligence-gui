@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <numeric>
 #include <cstdlib>
+#include <cassert>
 
 #include <gui_base/gui_base.hpp>
 #include <ImGuiFileDialog.h>
@@ -129,6 +130,8 @@ void MuhlePlayer::stop() {
 }
 
 void MuhlePlayer::load_engine(const std::string& file_path) {
+    assert(!m_engine);
+
     m_engine = std::make_unique<engine::Engine>();
 
     try {
@@ -143,32 +146,28 @@ void MuhlePlayer::load_engine(const std::string& file_path) {
 
     m_engine->set_log_output(true);
 
-    m_engine->set_info_callback([](const engine::Engine::Info& info, void* pointer) {
-        MuhlePlayer* self {static_cast<MuhlePlayer*>(pointer)};
-
+    m_engine->set_info_callback([this](const engine::Engine::Info& info) {
         if (info.score) {
             switch (info.score->index()) {
                 case 0:
-                    self->m_score = "eval " + std::to_string(std::get<0>(*info.score).value);
+                    m_score = "eval " + std::to_string(std::get<0>(*info.score).value);
                     break;
                 case 1:
-                    self->m_score = "win " + std::to_string(std::get<1>(*info.score).value);
+                    m_score = "win " + std::to_string(std::get<1>(*info.score).value);
                     break;
             }
         }
 
         if (info.pv) {
             if (info.pv->empty()) {
-                self->m_pv.clear();
+                m_pv.clear();
             } else {
-                self->m_pv = std::accumulate(++info.pv->cbegin(), info.pv->cend(), *info.pv->cbegin(), [](std::string r, const std::string& move) {
+                m_pv = std::accumulate(++info.pv->cbegin(), info.pv->cend(), *info.pv->cbegin(), [](std::string r, const std::string& move) {
                     return std::move(r) + " " + move;
                 });
             }
         }
-    }, this);
-
-    m_engine_name = m_engine->get_name();
+    });
 }
 
 void MuhlePlayer::unload_engine() {
@@ -300,7 +299,7 @@ void MuhlePlayer::board() {
 
 void MuhlePlayer::controls() {
     if (ImGui::Begin("Controls")) {
-        ImGui::Text("Engine: %s", m_engine_name.c_str());
+        ImGui::Text("Engine: %s", m_engine->get_name().c_str());
         ImGui::Separator();
 
         ImGui::Spacing();
@@ -312,12 +311,8 @@ void MuhlePlayer::controls() {
         } else {
             if (ImGui::Button("Start Game")) {
                 if (m_white == PlayerComputer || m_black == PlayerComputer) {
-                    try {
-                        if (m_engine) {
-                            m_state = State::Start;
-                        }
-                    } catch (const engine::EngineError& e) {
-                        std::cerr << "Engine error: " << e.what() << '\n';
+                    if (m_engine) {
+                        m_state = State::Start;
                     }
                 } else {
                     m_state = State::Start;
