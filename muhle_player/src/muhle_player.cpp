@@ -299,7 +299,7 @@ void MuhlePlayer::board() {
 
 void MuhlePlayer::controls() {
     if (ImGui::Begin("Controls")) {
-        ImGui::Text("Engine: %s", m_engine->get_name().c_str());
+        ImGui::Text("Engine: %s", m_engine ? m_engine->get_name().c_str() : "");
         ImGui::Separator();
 
         ImGui::Spacing();
