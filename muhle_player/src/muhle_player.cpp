@@ -108,8 +108,6 @@ void MuhlePlayer::update() {
                     break;
                 }
 
-                std::cout << "Playing move on the board " << *best_move << '\n';
-
                 m_board.play_move(board::move_from_string(*best_move));
             }
 

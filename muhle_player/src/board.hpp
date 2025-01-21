@@ -82,13 +82,13 @@ namespace board {
     class PieceObj {
     public:
         PieceObj() = default;
-        explicit PieceObj(Player type)
-            : m_type(type) {}
+        explicit PieceObj(Player type, ImVec2 position)
+            : m_type(type), m_position(position) {}
 
         Player get_type() const { return m_type; }
 
         void update();
-        void render(ImDrawList* draw_list, float board_unit);
+        void render(ImDrawList* draw_list, float board_unit, ImVec2 board_offset);
         void move(ImVec2 target);
 
         int node_index {-1};
@@ -137,6 +137,7 @@ namespace board {
         int new_piece_to_place(Player type) const;
         int piece_on_node(int index) const;
         int get_index(ImVec2 position) const;
+        ImVec2 piece_position_hidden() const;
         ImVec2 node_position(int index) const;
         static bool point_in_circle(ImVec2 point, ImVec2 circle, float radius);
 

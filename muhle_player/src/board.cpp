@@ -213,7 +213,7 @@ namespace board {
         {
             const auto difference {ImVec2(m_target.x - m_position.x, m_target.y - m_position.y)};
             const float difference_mag {std::sqrt(difference.x * difference.x + difference.y * difference.y)};
-            const auto velocity {ImVec2(difference.x / difference_mag * 10.0f, difference.y / difference_mag * 10.0f)};
+            const auto velocity {ImVec2(difference.x / difference_mag / 4.0f, difference.y / difference_mag / 4.0f)};
 
             m_position = ImVec2(m_position.x + velocity.x, m_position.y + velocity.y);
         }
@@ -221,24 +221,24 @@ namespace board {
         const auto difference {ImVec2(m_target.x - m_position.x, m_target.y - m_position.y)};
         const float difference_mag {std::sqrt(difference.x * difference.x + difference.y * difference.y)};
 
-        if (difference_mag < 10.0f + 0.1f) {
+        if (difference_mag < 0.5f + 0.1f) {
             m_position = m_target;
             m_moving = false;
         }
     }
 
-    void PieceObj::render(ImDrawList* draw_list, float board_unit) {
+    void PieceObj::render(ImDrawList* draw_list, float board_unit, ImVec2 board_offset) {
         switch (m_type) {
             case Player::White:
                 draw_list->AddCircleFilled(
-                    m_position,
+                    ImVec2(m_position.x * board_unit + board_offset.x, m_position.y * board_unit + board_offset.y),
                     board_unit / NODE_RADIUS,
                     ImColor(235, 235, 235, 255)
                 );
                 break;
             case Player::Black:
                 draw_list->AddCircleFilled(
-                    m_position,
+                    ImVec2(m_position.x * board_unit + board_offset.x, m_position.y * board_unit + board_offset.y),
                     board_unit / NODE_RADIUS,
                     ImColor(15, 15, 15, 255)
                 );
@@ -327,7 +327,7 @@ namespace board {
 
             for (PieceObj& piece : m_pieces) {
                 piece.update();
-                piece.render(draw_list, m_board_unit);
+                piece.render(draw_list, m_board_unit, m_board_offset);
             }
 
             const float width {m_board_unit < 55.0f ? 2.0f : 3.0f};
@@ -424,7 +424,7 @@ namespace board {
                 }
                 {
                     const int index {piece_on_node(move.place_capture.capture_index)};
-                    m_pieces[index].move(ImVec2());
+                    m_pieces[index].move(piece_position_hidden());
                     m_pieces[index].node_index = -1;
                 }
 
@@ -449,7 +449,7 @@ namespace board {
                 }
                 {
                     const int index {piece_on_node(move.move_capture.capture_index)};
-                    m_pieces[index].move(ImVec2());
+                    m_pieces[index].move(piece_position_hidden());
                     m_pieces[index].node_index = -1;
                 }
 
@@ -610,7 +610,7 @@ namespace board {
 
         switch (iter->type) {
             case MoveType::PlaceCapture: {
-                m_pieces[piece_on_node(iter->place_capture.capture_index)].move(ImVec2());
+                m_pieces[piece_on_node(iter->place_capture.capture_index)].move(piece_position_hidden());
                 m_pieces[piece_on_node(iter->place_capture.capture_index)].node_index = -1;
 
                 const Move move {*iter};
@@ -619,7 +619,7 @@ namespace board {
                 break;
             }
             case MoveType::MoveCapture: {
-                m_pieces[piece_on_node(iter->move_capture.capture_index)].move(ImVec2());
+                m_pieces[piece_on_node(iter->move_capture.capture_index)].move(piece_position_hidden());
                 m_pieces[piece_on_node(iter->move_capture.capture_index)].node_index = -1;
 
                 const Move move {*iter};
@@ -760,11 +760,11 @@ namespace board {
 
     void Board::initialize_pieces() {
         for (int i {0}; i < 9; i++) {
-            m_pieces[i] = PieceObj(Player::White);
+            m_pieces[i] = PieceObj(Player::White, piece_position_hidden());
         }
 
         for (int i {9}; i < 18; i++) {
-            m_pieces[i] = PieceObj(Player::Black);
+            m_pieces[i] = PieceObj(Player::Black, piece_position_hidden());
         }
 
         for (int i {0}; i < 24; i++) {
@@ -807,7 +807,11 @@ namespace board {
 
     int Board::get_index(ImVec2 position) const {
         for (int i {0}; i < 24; i++) {
-            if (point_in_circle(position, node_position(i), m_board_unit / NODE_RADIUS)) {
+            ImVec2 node {node_position(i)};
+            node.x = node.x * m_board_unit + m_board_offset.x;
+            node.y = node.y * m_board_unit + m_board_offset.y;
+
+            if (point_in_circle(position, node, m_board_unit / NODE_RADIUS)) {
                 return i;
             }
         }
@@ -815,11 +819,12 @@ namespace board {
         return -1;
     }
 
+    ImVec2 Board::piece_position_hidden() const {
+        return ImVec2(-4.0f, -4.0f);
+    }
+
     ImVec2 Board::node_position(int index) const {
-        return ImVec2(
-            static_cast<float>(NODE_POSITIONS[index][0]) * m_board_unit + m_board_offset.x,
-            static_cast<float>(NODE_POSITIONS[index][1]) * m_board_unit + m_board_offset.y
-        );
+        return ImVec2(static_cast<float>(NODE_POSITIONS[index][0]), static_cast<float>(NODE_POSITIONS[index][1]));
     }
 
     bool Board::point_in_circle(ImVec2 point, ImVec2 circle, float radius) {
