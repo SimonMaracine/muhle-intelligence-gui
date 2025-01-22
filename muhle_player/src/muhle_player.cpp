@@ -35,6 +35,7 @@ void MuhlePlayer::update() {
     board();
     controls();
     game();
+    options();
     load_engine_dialog();
 
     m_clock.update();
@@ -131,19 +132,7 @@ void MuhlePlayer::load_engine(const std::string& file_path) {
     assert(!m_engine);
 
     m_engine = std::make_unique<engine::Engine>();
-
-    try {
-        m_engine->initialize(file_path);
-        m_engine->set_debug(true);
-        m_engine->new_game();
-        m_engine->synchronize();
-    } catch (const engine::EngineError& e) {
-        std::cerr << "Engine error: " << e.what() << '\n';
-        return;
-    }
-
     m_engine->set_log_output(true);
-
     m_engine->set_info_callback([this](const engine::Engine::Info& info) {
         if (info.score) {
             switch (info.score->index()) {
@@ -166,6 +155,16 @@ void MuhlePlayer::load_engine(const std::string& file_path) {
             }
         }
     });
+
+    try {
+        m_engine->initialize(file_path);
+        m_engine->set_debug(true);
+        m_engine->new_game();
+        m_engine->synchronize();
+    } catch (const engine::EngineError& e) {
+        std::cerr << "Engine error: " << e.what() << '\n';
+        return;
+    }
 }
 
 void MuhlePlayer::unload_engine() {
@@ -420,6 +419,20 @@ void MuhlePlayer::game() {
         }
 
         ImGui::EndChild();
+    }
+
+    ImGui::End();
+}
+
+void MuhlePlayer::options() {
+    if (ImGui::Begin("Options")) {
+        if (m_engine) {
+            for (const auto& option : m_engine->get_options()) {
+                ImGui::Text("%s", option.name.c_str());
+
+                // TODO
+            }
+        }
     }
 
     ImGui::End();

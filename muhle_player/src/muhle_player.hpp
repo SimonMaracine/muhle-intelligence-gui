@@ -33,6 +33,7 @@ private:
     void board();
     void controls();
     void game();
+    void options();
 
     int get_board_player_type() const;
     void assert_engine_game_over();
