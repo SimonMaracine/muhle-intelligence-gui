@@ -383,6 +383,10 @@ namespace board {
         ImGui::End();
     }
 
+    void Board::twelve_mens_morris(bool enable) {
+        m_p = enable ? TWELVE : NINE;
+    }
+
     void Board::reset(const Position& position) {
         m_position = position;
         m_plies_no_advancement = 0;
@@ -486,7 +490,7 @@ namespace board {
                 return;
             }
 
-            if (m_position.plies >= 18) {
+            if (m_position.plies >= m_p) {
                 if (m_capture_piece) {
                     try_capture(index);
                 } else {
@@ -715,7 +719,7 @@ namespace board {
             return;
         }
 
-        if (m_position.plies < 18) {
+        if (m_position.plies < m_p) {
             return;
         }
 
@@ -749,7 +753,9 @@ namespace board {
             return;
         }
 
-        const auto count {std::count(m_positions.cbegin(), m_positions.cend(), m_position)};
+        const auto count {std::count_if(m_positions.cbegin(), m_positions.cend(), [this](const auto& position) {
+            return position.eq(m_position, m_p);
+        })};
 
         assert(count >= 1);
 
@@ -759,11 +765,11 @@ namespace board {
     }
 
     void Board::initialize_pieces() {
-        for (int i {0}; i < 9; i++) {
+        for (int i {0}; i < 12; i++) {
             m_pieces[i] = PieceObj(Player::White, piece_position_hidden());
         }
 
-        for (int i {9}; i < 18; i++) {
+        for (int i {12}; i < 24; i++) {
             m_pieces[i] = PieceObj(Player::Black, piece_position_hidden());
         }
 
@@ -837,18 +843,18 @@ namespace board {
     std::vector<Move> Board::generate_moves() const {
         Board_ local_board {m_position.board};
 
-        if (m_position.plies < 18) {
-            return generate_moves_phase1(local_board, m_position.player);
+        if (m_position.plies < m_p) {
+            return generate_moves_phase1(local_board, m_position.player, m_p);
         } else {
             if (count_pieces(local_board, m_position.player) == 3) {
-                return generate_moves_phase3(local_board, m_position.player);
+                return generate_moves_phase3(local_board, m_position.player, m_p);
             } else {
-                return generate_moves_phase2(local_board, m_position.player);
+                return generate_moves_phase2(local_board, m_position.player, m_p);
             }
         }
     }
 
-    std::vector<Move> Board::generate_moves_phase1(Board_& board, Player player) {
+    std::vector<Move> Board::generate_moves_phase1(Board_& board, Player player, unsigned int p) {
         std::vector<Move> moves;
 
         for (int i {0}; i < 24; i++) {
@@ -858,16 +864,16 @@ namespace board {
 
             make_place_move(board, player, i);
 
-            if (is_mill(board, player, i)) {
+            if (is_mill(board, player, i, p)) {
                 const Player opponent_player {opponent(player)};
-                const bool all_in_mills {all_pieces_in_mills(board, opponent_player)};
+                const bool all_in_mills {all_pieces_in_mills(board, opponent_player, p)};
 
                 for (int j {0}; j < 24; j++) {
                     if (board[j] != static_cast<Node>(opponent_player)) {
                         continue;
                     }
 
-                    if (is_mill(board, opponent_player, j) && !all_in_mills) {
+                    if (is_mill(board, opponent_player, j, p) && !all_in_mills) {
                         continue;
                     }
 
@@ -883,7 +889,7 @@ namespace board {
         return moves;
     }
 
-    std::vector<Move> Board::generate_moves_phase2(Board_& board, Player player) {
+    std::vector<Move> Board::generate_moves_phase2(Board_& board, Player player, unsigned int p) {
         std::vector<Move> moves;
 
         for (int i {0}; i < 24; i++) {
@@ -891,21 +897,21 @@ namespace board {
                 continue;
             }
 
-            const auto free_positions {neighbor_free_positions(board, i)};
+            const auto free_positions {neighbor_free_positions(board, i, p)};
 
             for (int j {0}; j < static_cast<int>(free_positions.size()); j++) {
                 make_move_move(board, i, free_positions[j]);
 
-                if (is_mill(board, player, free_positions[j])) {
+                if (is_mill(board, player, free_positions[j], p)) {
                     const Player opponent_player {opponent(player)};
-                    const bool all_in_mills {all_pieces_in_mills(board, opponent_player)};
+                    const bool all_in_mills {all_pieces_in_mills(board, opponent_player, p)};
 
                     for (int k {0}; k < 24; k++) {
                         if (board[k] != static_cast<Node>(opponent_player)) {
                             continue;
                         }
 
-                        if (is_mill(board, opponent_player, k) && !all_in_mills) {
+                        if (is_mill(board, opponent_player, k, p) && !all_in_mills) {
                             continue;
                         }
 
@@ -922,7 +928,7 @@ namespace board {
         return moves;
     }
 
-    std::vector<Move> Board::generate_moves_phase3(Board_& board, Player player) {
+    std::vector<Move> Board::generate_moves_phase3(Board_& board, Player player, unsigned int p) {
         std::vector<Move> moves;
 
         for (int i {0}; i < 24; i++) {
@@ -937,16 +943,16 @@ namespace board {
 
                 make_move_move(board, i, j);
 
-                if (is_mill(board, player, j)) {
+                if (is_mill(board, player, j, p)) {
                     const Player opponent_player {opponent(player)};
-                    const bool all_in_mills {all_pieces_in_mills(board, opponent_player)};
+                    const bool all_in_mills {all_pieces_in_mills(board, opponent_player, p)};
 
                     for (int k {0}; k < 24; k++) {
                         if (board[k] != static_cast<Node>(opponent_player)) {
                             continue;
                         }
 
-                        if (is_mill(board, opponent_player, k) && !all_in_mills) {
+                        if (is_mill(board, opponent_player, k, p) && !all_in_mills) {
                             continue;
                         }
 
@@ -989,57 +995,97 @@ namespace board {
         std::swap(board[source_index], board[destination_index]);
     }
 
-#ifdef __GNUG__
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wparentheses"
-#endif
+    static bool mill(const Board_& board, Node node, int index1, int index2) {
+        return board[index1] == node && board[index2] == node;
+    }
 
-    bool Board::is_mill(const Board_& board, Player player, int index) {
+    bool Board::is_mill(const Board_& board, Player player, int index, unsigned int p) {
+        if (p == NINE) {
+            return is_mill9(board, player, index);
+        } else {
+            return is_mill12(board, player, index);
+        }
+    }
+
+    bool Board::is_mill9(const Board_& board, Player player, int index) {
         const Node node {static_cast<Node>(player)};
 
         assert(board[index] == node);
 
         switch (index) {
-            case 0: return board[1] == node && board[2] == node || board[9] == node && board[21] == node;
-            case 1: return board[0] == node && board[2] == node || board[4] == node && board[7] == node;
-            case 2: return board[0] == node && board[1] == node || board[14] == node && board[23] == node;
-            case 3: return board[4] == node && board[5] == node || board[10] == node && board[18] == node;
-            case 4: return board[3] == node && board[5] == node || board[1] == node && board[7] == node;
-            case 5: return board[3] == node && board[4] == node || board[13] == node && board[20] == node;
-            case 6: return board[7] == node && board[8] == node || board[11] == node && board[15] == node;
-            case 7: return board[6] == node && board[8] == node || board[1] == node && board[4] == node;
-            case 8: return board[6] == node && board[7] == node || board[12] == node && board[17] == node;
-            case 9: return board[0] == node && board[21] == node || board[10] == node && board[11] == node;
-            case 10: return board[9] == node && board[11] == node || board[3] == node && board[18] == node;
-            case 11: return board[9] == node && board[10] == node || board[6] == node && board[15] == node;
-            case 12: return board[13] == node && board[14] == node || board[8] == node && board[17] == node;
-            case 13: return board[12] == node && board[14] == node || board[5] == node && board[20] == node;
-            case 14: return board[12] == node && board[13] == node || board[2] == node && board[23] == node;
-            case 15: return board[16] == node && board[17] == node || board[6] == node && board[11] == node;
-            case 16: return board[15] == node && board[17] == node || board[19] == node && board[22] == node;
-            case 17: return board[15] == node && board[16] == node || board[8] == node && board[12] == node;
-            case 18: return board[19] == node && board[20] == node || board[3] == node && board[10] == node;
-            case 19: return board[18] == node && board[20] == node || board[16] == node && board[22] == node;
-            case 20: return board[18] == node && board[19] == node || board[5] == node && board[13] == node;
-            case 21: return board[22] == node && board[23] == node || board[0] == node && board[9] == node;
-            case 22: return board[21] == node && board[23] == node || board[16] == node && board[19] == node;
-            case 23: return board[21] == node && board[22] == node || board[2] == node && board[14] == node;
+            case 0: return mill(board, node, 1, 2) || mill(board, node, 9, 21);
+            case 1: return mill(board, node, 0, 2) || mill(board, node, 4, 7);
+            case 2: return mill(board, node, 0, 1) || mill(board, node, 14, 23);
+            case 3: return mill(board, node, 4, 5) || mill(board, node, 10, 18);
+            case 4: return mill(board, node, 3, 5) || mill(board, node, 1, 7);
+            case 5: return mill(board, node, 3, 4) || mill(board, node, 13, 20);
+            case 6: return mill(board, node, 7, 8) || mill(board, node, 11, 15);
+            case 7: return mill(board, node, 6, 8) || mill(board, node, 1, 4);
+            case 8: return mill(board, node, 6, 7) || mill(board, node, 12, 17);
+            case 9: return mill(board, node, 0, 21) || mill(board, node, 10, 11);
+            case 10: return mill(board, node, 9, 11) || mill(board, node, 3, 18);
+            case 11: return mill(board, node, 9, 10) || mill(board, node, 6, 15);
+            case 12: return mill(board, node, 13, 14) || mill(board, node, 8, 17);
+            case 13: return mill(board, node, 12, 14) || mill(board, node, 5, 20);
+            case 14: return mill(board, node, 12, 13) || mill(board, node, 2, 23);
+            case 15: return mill(board, node, 16, 17) || mill(board, node, 6, 11);
+            case 16: return mill(board, node, 15, 17) || mill(board, node, 19, 22);
+            case 17: return mill(board, node, 15, 16) || mill(board, node, 8, 12);
+            case 18: return mill(board, node, 19, 20) || mill(board, node, 3, 10);
+            case 19: return mill(board, node, 18, 20) || mill(board, node, 16, 22);
+            case 20: return mill(board, node, 18, 19) || mill(board, node, 5, 13);
+            case 21: return mill(board, node, 22, 23) || mill(board, node, 0, 9);
+            case 22: return mill(board, node, 21, 23) || mill(board, node, 16, 19);
+            case 23: return mill(board, node, 21, 22) || mill(board, node, 2, 14);
         }
 
+        assert(false);
         return {};
     }
 
-#ifdef __GNUG__
-    #pragma GCC diagnostic pop
-#endif
+    bool Board::is_mill12(const Board_& board, Player player, int index) {
+        const Node node {static_cast<Node>(player)};
 
-    bool Board::all_pieces_in_mills(const Board_& board, Player player) {
+        assert(board[index] == node);
+
+        switch (index) {
+            case 0: return mill(board, node, 1, 2) || mill(board, node, 9, 21) || mill(board, node, 3, 6);
+            case 1: return mill(board, node, 0, 2) || mill(board, node, 4, 7);
+            case 2: return mill(board, node, 0, 1) || mill(board, node, 14, 23) || mill(board, node, 5, 8);
+            case 3: return mill(board, node, 4, 5) || mill(board, node, 10, 18) || mill(board, node, 0, 6);
+            case 4: return mill(board, node, 3, 5) || mill(board, node, 1, 7);
+            case 5: return mill(board, node, 3, 4) || mill(board, node, 13, 20) || mill(board, node, 2, 8);
+            case 6: return mill(board, node, 7, 8) || mill(board, node, 11, 15) || mill(board, node, 0, 3);
+            case 7: return mill(board, node, 6, 8) || mill(board, node, 1, 4);
+            case 8: return mill(board, node, 6, 7) || mill(board, node, 12, 17) || mill(board, node, 2, 5);
+            case 9: return mill(board, node, 0, 21) || mill(board, node, 10, 11);
+            case 10: return mill(board, node, 9, 11) || mill(board, node, 3, 18);
+            case 11: return mill(board, node, 9, 10) || mill(board, node, 6, 15);
+            case 12: return mill(board, node, 13, 14) || mill(board, node, 8, 17);
+            case 13: return mill(board, node, 12, 14) || mill(board, node, 5, 20);
+            case 14: return mill(board, node, 12, 13) || mill(board, node, 2, 23);
+            case 15: return mill(board, node, 16, 17) || mill(board, node, 6, 11) || mill(board, node, 18, 21);
+            case 16: return mill(board, node, 15, 17) || mill(board, node, 19, 22);
+            case 17: return mill(board, node, 15, 16) || mill(board, node, 8, 12) || mill(board, node, 20, 23);
+            case 18: return mill(board, node, 19, 20) || mill(board, node, 3, 10) || mill(board, node, 15, 21);
+            case 19: return mill(board, node, 18, 20) || mill(board, node, 16, 22);
+            case 20: return mill(board, node, 18, 19) || mill(board, node, 5, 13) || mill(board, node, 17, 23);
+            case 21: return mill(board, node, 22, 23) || mill(board, node, 0, 9) || mill(board, node, 15, 18);
+            case 22: return mill(board, node, 21, 23) || mill(board, node, 16, 19);
+            case 23: return mill(board, node, 21, 22) || mill(board, node, 2, 14) || mill(board, node, 17, 20);
+        }
+
+        assert(false);
+        return {};
+    }
+
+    bool Board::all_pieces_in_mills(const Board_& board, Player player, unsigned int p) {
         for (int i {0}; i < 24; i++) {
             if (board[i] != static_cast<Node>(player)) {
                 continue;
             }
 
-            if (!is_mill(board, player, i)) {
+            if (!is_mill(board, player, i, p)) {
                 return false;
             }
         }
@@ -1047,127 +1093,274 @@ namespace board {
         return true;
     }
 
-#define IS_FREE_CHECK(const_index) \
-    if (board[const_index] == Node::None) { \
-        result.push_back(const_index); \
+    static void neighbor(const Board_& board, std::vector<int>& result, int index) {
+        if (board[index] == Node::None) {
+            result.push_back(index);
+        }
     }
 
-    std::vector<int> Board::neighbor_free_positions(const Board_& board, int index) {
+    std::vector<int> Board::neighbor_free_positions(const Board_& board, int index, unsigned int p) {
+        if (p == NINE) {
+            return neighbor_free_positions9(board, index);
+        } else {
+            return neighbor_free_positions12(board, index);
+        }
+    }
+
+    std::vector<int> Board::neighbor_free_positions9(const Board_& board, int index) {
         std::vector<int> result;
         result.reserve(4);
 
         switch (index) {
             case 0:
-                IS_FREE_CHECK(1)
-                IS_FREE_CHECK(9)
+                neighbor(board, result, 1);
+                neighbor(board, result, 9);
                 break;
             case 1:
-                IS_FREE_CHECK(0)
-                IS_FREE_CHECK(2)
-                IS_FREE_CHECK(4)
+                neighbor(board, result, 0);
+                neighbor(board, result, 2);
+                neighbor(board, result, 4);
                 break;
             case 2:
-                IS_FREE_CHECK(1)
-                IS_FREE_CHECK(14)
+                neighbor(board, result, 1);
+                neighbor(board, result, 14);
                 break;
             case 3:
-                IS_FREE_CHECK(4)
-                IS_FREE_CHECK(10)
+                neighbor(board, result, 4);
+                neighbor(board, result, 10);
                 break;
             case 4:
-                IS_FREE_CHECK(1)
-                IS_FREE_CHECK(3)
-                IS_FREE_CHECK(5)
-                IS_FREE_CHECK(7)
+                neighbor(board, result, 1);
+                neighbor(board, result, 3);
+                neighbor(board, result, 5);
+                neighbor(board, result, 7);
                 break;
             case 5:
-                IS_FREE_CHECK(4)
-                IS_FREE_CHECK(13)
+                neighbor(board, result, 4);
+                neighbor(board, result, 13);
                 break;
             case 6:
-                IS_FREE_CHECK(7)
-                IS_FREE_CHECK(11)
+                neighbor(board, result, 7);
+                neighbor(board, result, 11);
                 break;
             case 7:
-                IS_FREE_CHECK(4)
-                IS_FREE_CHECK(6)
-                IS_FREE_CHECK(8)
+                neighbor(board, result, 4);
+                neighbor(board, result, 6);
+                neighbor(board, result, 8);
                 break;
             case 8:
-                IS_FREE_CHECK(7)
-                IS_FREE_CHECK(12)
+                neighbor(board, result, 7);
+                neighbor(board, result, 12);
                 break;
             case 9:
-                IS_FREE_CHECK(0)
-                IS_FREE_CHECK(10)
-                IS_FREE_CHECK(21)
+                neighbor(board, result, 0);
+                neighbor(board, result, 10);
+                neighbor(board, result, 21);
                 break;
             case 10:
-                IS_FREE_CHECK(3)
-                IS_FREE_CHECK(9)
-                IS_FREE_CHECK(11)
-                IS_FREE_CHECK(18)
+                neighbor(board, result, 3);
+                neighbor(board, result, 9);
+                neighbor(board, result, 11);
+                neighbor(board, result, 18);
                 break;
             case 11:
-                IS_FREE_CHECK(6)
-                IS_FREE_CHECK(10)
-                IS_FREE_CHECK(15)
+                neighbor(board, result, 6);
+                neighbor(board, result, 10);
+                neighbor(board, result, 15);
                 break;
             case 12:
-                IS_FREE_CHECK(8)
-                IS_FREE_CHECK(13)
-                IS_FREE_CHECK(17)
+                neighbor(board, result, 8);
+                neighbor(board, result, 13);
+                neighbor(board, result, 17);
                 break;
             case 13:
-                IS_FREE_CHECK(5)
-                IS_FREE_CHECK(12)
-                IS_FREE_CHECK(14)
-                IS_FREE_CHECK(20)
+                neighbor(board, result, 5);
+                neighbor(board, result, 12);
+                neighbor(board, result, 14);
+                neighbor(board, result, 20);
                 break;
             case 14:
-                IS_FREE_CHECK(2)
-                IS_FREE_CHECK(13)
-                IS_FREE_CHECK(23)
+                neighbor(board, result, 2);
+                neighbor(board, result, 13);
+                neighbor(board, result, 23);
                 break;
             case 15:
-                IS_FREE_CHECK(11)
-                IS_FREE_CHECK(16)
+                neighbor(board, result, 11);
+                neighbor(board, result, 16);
                 break;
             case 16:
-                IS_FREE_CHECK(15)
-                IS_FREE_CHECK(17)
-                IS_FREE_CHECK(19)
+                neighbor(board, result, 15);
+                neighbor(board, result, 17);
+                neighbor(board, result, 19);
                 break;
             case 17:
-                IS_FREE_CHECK(12)
-                IS_FREE_CHECK(16)
+                neighbor(board, result, 12);
+                neighbor(board, result, 16);
                 break;
             case 18:
-                IS_FREE_CHECK(10)
-                IS_FREE_CHECK(19)
+                neighbor(board, result, 10);
+                neighbor(board, result, 19);
                 break;
             case 19:
-                IS_FREE_CHECK(16)
-                IS_FREE_CHECK(18)
-                IS_FREE_CHECK(20)
-                IS_FREE_CHECK(22)
+                neighbor(board, result, 16);
+                neighbor(board, result, 18);
+                neighbor(board, result, 20);
+                neighbor(board, result, 22);
                 break;
             case 20:
-                IS_FREE_CHECK(13)
-                IS_FREE_CHECK(19)
+                neighbor(board, result, 13);
+                neighbor(board, result, 19);
                 break;
             case 21:
-                IS_FREE_CHECK(9)
-                IS_FREE_CHECK(22)
+                neighbor(board, result, 9);
+                neighbor(board, result, 22);
                 break;
             case 22:
-                IS_FREE_CHECK(19)
-                IS_FREE_CHECK(21)
-                IS_FREE_CHECK(23)
+                neighbor(board, result, 19);
+                neighbor(board, result, 21);
+                neighbor(board, result, 23);
                 break;
             case 23:
-                IS_FREE_CHECK(14)
-                IS_FREE_CHECK(22)
+                neighbor(board, result, 14);
+                neighbor(board, result, 22);
+                break;
+        }
+
+        return result;
+    }
+
+    std::vector<int> Board::neighbor_free_positions12(const Board_& board, int index) {
+        std::vector<int> result;
+        result.reserve(4);
+
+        switch (index) {
+            case 0:
+                neighbor(board, result, 1);
+                neighbor(board, result, 9);
+                neighbor(board, result, 3);
+                break;
+            case 1:
+                neighbor(board, result, 0);
+                neighbor(board, result, 2);
+                neighbor(board, result, 4);
+                break;
+            case 2:
+                neighbor(board, result, 1);
+                neighbor(board, result, 14);
+                neighbor(board, result, 5);
+                break;
+            case 3:
+                neighbor(board, result, 4);
+                neighbor(board, result, 10);
+                neighbor(board, result, 0);
+                neighbor(board, result, 6);
+                break;
+            case 4:
+                neighbor(board, result, 1);
+                neighbor(board, result, 3);
+                neighbor(board, result, 5);
+                neighbor(board, result, 7);
+                break;
+            case 5:
+                neighbor(board, result, 4);
+                neighbor(board, result, 13);
+                neighbor(board, result, 2);
+                neighbor(board, result, 8);
+                break;
+            case 6:
+                neighbor(board, result, 7);
+                neighbor(board, result, 11);
+                neighbor(board, result, 3);
+                break;
+            case 7:
+                neighbor(board, result, 4);
+                neighbor(board, result, 6);
+                neighbor(board, result, 8);
+                break;
+            case 8:
+                neighbor(board, result, 7);
+                neighbor(board, result, 12);
+                neighbor(board, result, 5);
+                break;
+            case 9:
+                neighbor(board, result, 0);
+                neighbor(board, result, 10);
+                neighbor(board, result, 21);
+                break;
+            case 10:
+                neighbor(board, result, 3);
+                neighbor(board, result, 9);
+                neighbor(board, result, 11);
+                neighbor(board, result, 18);
+                break;
+            case 11:
+                neighbor(board, result, 6);
+                neighbor(board, result, 10);
+                neighbor(board, result, 15);
+                break;
+            case 12:
+                neighbor(board, result, 8);
+                neighbor(board, result, 13);
+                neighbor(board, result, 17);
+                break;
+            case 13:
+                neighbor(board, result, 5);
+                neighbor(board, result, 12);
+                neighbor(board, result, 14);
+                neighbor(board, result, 20);
+                break;
+            case 14:
+                neighbor(board, result, 2);
+                neighbor(board, result, 13);
+                neighbor(board, result, 23);
+                break;
+            case 15:
+                neighbor(board, result, 11);
+                neighbor(board, result, 16);
+                neighbor(board, result, 18);
+                break;
+            case 16:
+                neighbor(board, result, 15);
+                neighbor(board, result, 17);
+                neighbor(board, result, 19);
+                break;
+            case 17:
+                neighbor(board, result, 12);
+                neighbor(board, result, 16);
+                neighbor(board, result, 20);
+                break;
+            case 18:
+                neighbor(board, result, 10);
+                neighbor(board, result, 19);
+                neighbor(board, result, 15);
+                neighbor(board, result, 21);
+                break;
+            case 19:
+                neighbor(board, result, 16);
+                neighbor(board, result, 18);
+                neighbor(board, result, 20);
+                neighbor(board, result, 22);
+                break;
+            case 20:
+                neighbor(board, result, 13);
+                neighbor(board, result, 19);
+                neighbor(board, result, 17);
+                neighbor(board, result, 23);
+                break;
+            case 21:
+                neighbor(board, result, 9);
+                neighbor(board, result, 22);
+                neighbor(board, result, 18);
+                break;
+            case 22:
+                neighbor(board, result, 19);
+                neighbor(board, result, 21);
+                neighbor(board, result, 23);
+                break;
+            case 23:
+                neighbor(board, result, 14);
+                neighbor(board, result, 22);
+                neighbor(board, result, 20);
                 break;
         }
 

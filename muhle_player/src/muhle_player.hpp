@@ -37,6 +37,7 @@ private:
 
     int get_board_player_type() const;
     void assert_engine_game_over();
+    void set_twelve_mens_morris();
     static std::tuple<unsigned int, unsigned int, unsigned int> split_time(unsigned int time_milliseconds);
 
     enum PlayerType {
@@ -65,4 +66,6 @@ private:
     std::string m_score;
     std::string m_pv;
     clock_::Clock m_clock;
+
+    bool m_twelve_mens_morris {false};
 };

@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <stdexcept>
 #include <numeric>
+#include <algorithm>
 #include <cstdlib>
 #include <cassert>
 
@@ -197,6 +198,13 @@ void MuhlePlayer::main_menu_bar() {
             }
             if (ImGui::MenuItem("Quit")) {
                 quit();
+            }
+
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Options")) {
+            if (ImGui::MenuItem("Twelve Men's Morris", nullptr, &m_twelve_mens_morris, static_cast<bool>(m_engine))) {
+                set_twelve_mens_morris();
             }
 
             ImGui::EndMenu();
@@ -477,6 +485,25 @@ void MuhlePlayer::assert_engine_game_over() {
         std::cerr << "Engine error: " << e.what() << '\n';
         m_state = State::Stop;
     }
+}
+
+void MuhlePlayer::set_twelve_mens_morris() {
+    const auto iter {std::find_if(m_engine->get_options().cbegin(), m_engine->get_options().cend(), [](const auto& option) {
+        return option.name == "TwelveMensMorris";
+    })};
+
+    if (iter == m_engine->get_options().cend()) {
+        throw std::runtime_error("Engine doesn't support twelve men's morris");
+    }
+
+    try {
+        m_engine->set_option("TwelveMensMorris", m_twelve_mens_morris ? "true" : "false");
+    } catch (const engine::EngineError& e) {
+        std::cerr << "Engine error: " << e.what() << '\n';
+        return;
+    }
+
+    m_board.twelve_mens_morris(m_twelve_mens_morris);
 }
 
 std::tuple<unsigned int, unsigned int, unsigned int> MuhlePlayer::split_time(unsigned int time_milliseconds) {

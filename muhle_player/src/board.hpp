@@ -9,6 +9,9 @@
 #include <gui_base/gui_base.hpp>
 
 namespace board {
+    inline constexpr unsigned int NINE {18};
+    inline constexpr unsigned int TWELVE {24};
+
     enum class Player {
         White = 1,
         Black = 2
@@ -74,8 +77,8 @@ namespace board {
         Player player {Player::White};
         unsigned int plies {0};
 
-        bool operator==(const Position& other) const {
-            return board == other.board && player == other.player && plies >= 18 && other.plies >= 18;
+        bool eq(const Position& other, unsigned int p) const {
+            return board == other.board && player == other.player && plies >= p && other.plies >= p;
         }
     };
 
@@ -110,6 +113,7 @@ namespace board {
 
         void update(bool user_input = false);
         void debug() const;
+        void twelve_mens_morris(bool enable);
 
         void reset(const Position& position);
         void play_move(const Move& move);
@@ -143,18 +147,25 @@ namespace board {
 
         // Move generation
         std::vector<Move> generate_moves() const;
-        static std::vector<Move> generate_moves_phase1(Board_& board, Player player);
-        static std::vector<Move> generate_moves_phase2(Board_& board, Player player);
-        static std::vector<Move> generate_moves_phase3(Board_& board, Player player);
+        static std::vector<Move> generate_moves_phase1(Board_& board, Player player, unsigned int p);
+        static std::vector<Move> generate_moves_phase2(Board_& board, Player player, unsigned int p);
+        static std::vector<Move> generate_moves_phase3(Board_& board, Player player, unsigned int p);
         static void make_place_move(Board_& board, Player player, int place_index);
         static void unmake_place_move(Board_& board, int place_index);
         static void make_move_move(Board_& board, int source_index, int destination_index);
         static void unmake_move_move(Board_& board, int source_index, int destination_index);
-        static bool is_mill(const Board_& board, Player player, int index);
-        static bool all_pieces_in_mills(const Board_& board, Player player);
-        static std::vector<int> neighbor_free_positions(const Board_& board, int index);
+        static bool is_mill(const Board_& board, Player player, int index, unsigned int p);
+        static bool is_mill9(const Board_& board, Player player, int index);
+        static bool is_mill12(const Board_& board, Player player, int index);
+        static bool all_pieces_in_mills(const Board_& board, Player player, unsigned int p);
+        static std::vector<int> neighbor_free_positions(const Board_& board, int index, unsigned int p);
+        static std::vector<int> neighbor_free_positions9(const Board_& board, int index);
+        static std::vector<int> neighbor_free_positions12(const Board_& board, int index);
         static int count_pieces(const Board_& board, Player player);
         static Player opponent(Player player);
+
+        // Game mode
+        unsigned int m_p {NINE};
 
         // Game data
         Position m_position;
@@ -168,7 +179,7 @@ namespace board {
         ImVec2 m_board_offset;
         GameOver m_game_over {GameOver::None};
         Position m_setup_position;
-        std::array<PieceObj, 18> m_pieces;
+        std::array<PieceObj, 24> m_pieces;
         std::vector<Move> m_legal_moves;
         std::vector<Move> m_candidate_moves;
         std::function<void(const Move&)> m_move_callback;
