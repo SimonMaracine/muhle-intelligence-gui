@@ -372,8 +372,8 @@ namespace board {
 
             ImGui::Text("player: %s", m_position.player == Player::White ? "white" : "black");
             ImGui::Text("game_over: %s", game_over_string);
-            ImGui::Text("plies: %u", m_position.plies);
-            ImGui::Text("plies_no_advancement: %u", m_plies_no_advancement);
+            ImGui::Text("plies: %d", m_position.plies);
+            ImGui::Text("plies_no_advancement: %d", m_plies_no_advancement);
             ImGui::Text("positions: %lu", m_positions.size());
             ImGui::Text("capture_piece: %s", m_capture_piece ? "true" : "false");
             ImGui::Text("select_index: %d", m_select_index);
@@ -790,9 +790,9 @@ namespace board {
     }
 
     int Board::new_piece_to_place(Player type) const {
-        for (std::size_t i {0}; i < m_pieces.size(); i++) {
+        for (int i {0}; i < 24; i++) {
             if (m_pieces[i].get_type() == type && m_pieces[i].node_index == -1) {
-                return static_cast<int>(i);
+                return i;
             }
         }
 
@@ -801,9 +801,9 @@ namespace board {
     }
 
     int Board::piece_on_node(int index) const {
-        for (std::size_t i {0}; i < m_pieces.size(); i++) {
+        for (int i {0}; i < 24; i++) {
             if (m_pieces[i].node_index == index) {
-                return static_cast<int>(i);
+                return i;
             }
         }
 
@@ -854,7 +854,7 @@ namespace board {
         }
     }
 
-    std::vector<Move> Board::generate_moves_phase1(Board_& board, Player player, unsigned int p) {
+    std::vector<Move> Board::generate_moves_phase1(Board_& board, Player player, int p) {
         std::vector<Move> moves;
 
         for (int i {0}; i < 24; i++) {
@@ -889,7 +889,7 @@ namespace board {
         return moves;
     }
 
-    std::vector<Move> Board::generate_moves_phase2(Board_& board, Player player, unsigned int p) {
+    std::vector<Move> Board::generate_moves_phase2(Board_& board, Player player, int p) {
         std::vector<Move> moves;
 
         for (int i {0}; i < 24; i++) {
@@ -928,7 +928,7 @@ namespace board {
         return moves;
     }
 
-    std::vector<Move> Board::generate_moves_phase3(Board_& board, Player player, unsigned int p) {
+    std::vector<Move> Board::generate_moves_phase3(Board_& board, Player player, int p) {
         std::vector<Move> moves;
 
         for (int i {0}; i < 24; i++) {
@@ -999,7 +999,7 @@ namespace board {
         return board[index1] == node && board[index2] == node;
     }
 
-    bool Board::is_mill(const Board_& board, Player player, int index, unsigned int p) {
+    bool Board::is_mill(const Board_& board, Player player, int index, int p) {
         if (p == NINE) {
             return is_mill9(board, player, index);
         } else {
@@ -1079,7 +1079,7 @@ namespace board {
         return {};
     }
 
-    bool Board::all_pieces_in_mills(const Board_& board, Player player, unsigned int p) {
+    bool Board::all_pieces_in_mills(const Board_& board, Player player, int p) {
         for (int i {0}; i < 24; i++) {
             if (board[i] != static_cast<Node>(player)) {
                 continue;
@@ -1099,7 +1099,7 @@ namespace board {
         }
     }
 
-    std::vector<int> Board::neighbor_free_positions(const Board_& board, int index, unsigned int p) {
+    std::vector<int> Board::neighbor_free_positions(const Board_& board, int index, int p) {
         if (p == NINE) {
             return neighbor_free_positions9(board, index);
         } else {
@@ -1462,10 +1462,10 @@ namespace board {
         const auto player {parse_player(tokens[0])};
         const auto pieces1 {parse_pieces(tokens[1])};
         const auto pieces2 {parse_pieces(tokens[2])};
-        unsigned long turns {};
+        int turns {};
 
         try {
-            turns = std::stoul(tokens[3]);
+            turns = std::stoi(tokens[3]);
         } catch (...) {
             throw BoardError("Invalid position string");
         }
@@ -1494,7 +1494,7 @@ namespace board {
             position.board[index] = static_cast<Node>(pieces2.second);
         }
 
-        position.plies = (static_cast<unsigned int>(turns) - 1) * 2 + static_cast<unsigned int>(player == Player::Black);
+        position.plies = (turns) - 1 * 2 + static_cast<int>(player == Player::Black);
 
         return position;
     }
