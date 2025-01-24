@@ -65,6 +65,12 @@ namespace engine {
                             m_name += ' ' + tokens[index++];
                         }
                         m_name = m_name.substr(1);
+                    } else if (tokens[1] == "author") {
+                        std::size_t index {2};
+                        while (token_available(tokens, index)) {
+                            m_author += ' ' + tokens[index++];
+                        }
+                        m_author = m_author.substr(1);
                     }
                 }
             } else if (tokens[0] == "option") {

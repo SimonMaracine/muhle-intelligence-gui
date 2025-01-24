@@ -10,9 +10,9 @@ namespace subprocess {
     Subprocess::~Subprocess() {
         kill();
 
-        try {
-            wait();
-        } catch (...) {}
+        if (m_context_thread.joinable()) {
+            m_context_thread.join();
+        }
     }
 
     void Subprocess::open(const std::string& file_path) {

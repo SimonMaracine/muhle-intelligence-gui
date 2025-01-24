@@ -2,7 +2,6 @@
 
 #include <string>
 #include <vector>
-#include <tuple>
 #include <optional>
 #include <memory>
 
@@ -37,8 +36,8 @@ private:
 
     int get_board_player_type() const;
     void assert_engine_game_over();
+    void engine_error(const engine::EngineError& e);
     void set_twelve_mens_morris();
-    static std::tuple<unsigned int, unsigned int, unsigned int> split_time(unsigned int time_milliseconds);
 
     enum PlayerType {
         PlayerHuman,

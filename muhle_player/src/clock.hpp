@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <tuple>
 
 namespace clock_ {
     class Clock {
@@ -13,6 +14,8 @@ namespace clock_ {
 
         unsigned int get_white_time() const { return m_white_time; }
         unsigned int get_black_time() const { return m_black_time; }
+
+        static std::tuple<unsigned int, unsigned int, unsigned int> split_time(unsigned int time);
     private:
         static void set_time(std::chrono::steady_clock::time_point& last_time);
         static void update_time(unsigned int& time, std::chrono::steady_clock::time_point& last_time);

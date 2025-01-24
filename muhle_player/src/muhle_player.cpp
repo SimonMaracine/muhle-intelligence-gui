@@ -5,7 +5,6 @@
 #include <stdexcept>
 #include <numeric>
 #include <algorithm>
-#include <cstdlib>
 #include <cassert>
 
 #include <gui_base/gui_base.hpp>
@@ -72,6 +71,8 @@ void MuhlePlayer::update() {
         case State::HumanThinking:
             break;
         case State::ComputerStartThinking:
+            assert(m_engine);
+
             try {
                 m_engine->start_thinking(
                     board::position_to_string(m_board.get_setup_position()),
@@ -82,7 +83,7 @@ void MuhlePlayer::update() {
                     std::nullopt
                 );
             } catch (const engine::EngineError& e) {
-                std::cerr << "Engine error: " << e.what() << '\n';
+                engine_error(e);
                 m_state = State::Stop;
                 break;
             }
@@ -91,12 +92,14 @@ void MuhlePlayer::update() {
 
             break;
         case State::ComputerThinking: {
+            assert(m_engine);
+
             std::optional<std::string> best_move;
 
             try {
                 best_move = m_engine->done_thinking();
             } catch (const engine::EngineError& e) {
-                std::cerr << "Engine error: " << e.what() << '\n';
+                engine_error(e);
                 m_state = State::Stop;
                 break;
             }
@@ -106,11 +109,9 @@ void MuhlePlayer::update() {
                     if (m_board.get_game_over() == board::GameOver::None) {
                         throw std::runtime_error("The engine calls game over, but the GUI doesn't agree");
                     }
-
-                    break;
+                } else {
+                    m_board.play_move(board::move_from_string(*best_move));
                 }
-
-                m_board.play_move(board::move_from_string(*best_move));
             }
 
             break;
@@ -163,8 +164,7 @@ void MuhlePlayer::load_engine(const std::string& file_path) {
         m_engine->new_game();
         m_engine->synchronize();
     } catch (const engine::EngineError& e) {
-        std::cerr << "Engine error: " << e.what() << '\n';
-        return;
+        engine_error(e);
     }
 }
 
@@ -241,12 +241,9 @@ void MuhlePlayer::load_engine_dialog() {
             const std::string file_path {ImGuiFileDialog::Instance()->GetFilePathName()};
 
             if (!file_path.empty()) {
-                // Unload any engine first
-                unload_engine();
+                unload_engine();  // Unload any engine first
                 load_engine(file_path);
-
-                // The position needs to be fresh
-                reset_position(std::nullopt);
+                reset_position(std::nullopt);  // The position needs to be fresh
             }
         }
 
@@ -257,13 +254,11 @@ void MuhlePlayer::load_engine_dialog() {
 void MuhlePlayer::reset_position(const std::optional<std::string>& position) {
     if (m_engine) {
         try {
-            // Stop the engine first
-            m_engine->stop_thinking();
+            m_engine->stop_thinking();  // Stop the engine first
             m_engine->new_game();
             m_engine->synchronize();
         } catch (const engine::EngineError& e) {
-            std::cerr << "Engine error: " << e.what() << '\n';
-            return;
+            engine_error(e);
         }
     }
 
@@ -271,7 +266,6 @@ void MuhlePlayer::reset_position(const std::optional<std::string>& position) {
         m_board.reset(position ? board::position_from_string(*position) : board::Position());
     } catch (const board::BoardError& e) {
         std::cerr << "Invalid input: " << e.what() << '\n';
-        return;
     }
 
     m_state = State::Ready;
@@ -369,11 +363,11 @@ void MuhlePlayer::game() {
     if (ImGui::Begin("Game")) {
         ImGui::Text("b.");
         ImGui::SameLine();
-        std::apply(ImGui::Text, std::tuple_cat(std::forward_as_tuple("%u:%02u.%02u"), split_time(m_clock.get_black_time())));
+        std::apply(ImGui::Text, std::tuple_cat(std::forward_as_tuple("%u:%02u.%02u"), clock_::Clock::split_time(m_clock.get_black_time())));
 
         ImGui::Text("w.");
         ImGui::SameLine();
-        std::apply(ImGui::Text, std::tuple_cat(std::forward_as_tuple("%u:%02u.%02u"), split_time(m_clock.get_white_time())));
+        std::apply(ImGui::Text, std::tuple_cat(std::forward_as_tuple("%u:%02u.%02u"), clock_::Clock::split_time(m_clock.get_white_time())));
 
         ImGui::Separator();
 
@@ -458,6 +452,8 @@ int MuhlePlayer::get_board_player_type() const {
 }
 
 void MuhlePlayer::assert_engine_game_over() {
+    assert(m_engine);
+
     try {
         m_engine->start_thinking(
             board::position_to_string(m_board.get_setup_position()),
@@ -482,12 +478,19 @@ void MuhlePlayer::assert_engine_game_over() {
             break;
         }
     } catch (const engine::EngineError& e) {
-        std::cerr << "Engine error: " << e.what() << '\n';
+        engine_error(e);
         m_state = State::Stop;
     }
 }
 
+void MuhlePlayer::engine_error(const engine::EngineError& e) {
+    std::cerr << "Engine error: " << e.what() << '\n';
+    m_engine.reset();
+}
+
 void MuhlePlayer::set_twelve_mens_morris() {
+    assert(m_engine);
+
     const auto iter {std::find_if(m_engine->get_options().cbegin(), m_engine->get_options().cend(), [](const auto& option) {
         return option.name == "TwelveMensMorris";
     })};
@@ -499,20 +502,9 @@ void MuhlePlayer::set_twelve_mens_morris() {
     try {
         m_engine->set_option("TwelveMensMorris", m_twelve_mens_morris ? "true" : "false");
     } catch (const engine::EngineError& e) {
-        std::cerr << "Engine error: " << e.what() << '\n';
+        engine_error(e);
         return;
     }
 
     m_board.twelve_mens_morris(m_twelve_mens_morris);
-}
-
-std::tuple<unsigned int, unsigned int, unsigned int> MuhlePlayer::split_time(unsigned int time_milliseconds) {
-    const auto result1 {std::div(static_cast<long long>(time_milliseconds), (1000ll * 60ll))};
-    const auto result2 {std::div(result1.rem, 1000ll)};
-
-    const auto minutes {static_cast<unsigned int>(result1.quot)};
-    const auto seconds {static_cast<unsigned int>(result2.quot)};
-    const auto centiseconds {static_cast<unsigned int>(result2.rem / 10)};
-
-    return std::make_tuple(minutes, seconds, centiseconds);
 }
